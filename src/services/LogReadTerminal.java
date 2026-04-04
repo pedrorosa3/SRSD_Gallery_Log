@@ -1,7 +1,10 @@
+package src.services;
+
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Stream;
+import src.models.*;
 
 public class LogReadTerminal {
     public static void main(String[] args) {
@@ -84,36 +87,4 @@ public class LogReadTerminal {
         boolean isIntersect;
         List<User> users = new ArrayList<>();
     }
-
-    private static class User {
-        String userName;
-        UserType userType;
-
-        public User(String userName, UserType userType) {
-            this.userName = userName;
-            this.userType = userType;
-        }
-
-        enum UserType {
-            EMPLOYEE,
-            GUEST
-        }
-
-        @Override
-        public boolean equals(Object o) {
-            if (this == o) return true;
-            if (o == null || getClass() != o.getClass()) return false;
-            User user = (User) o;
-            return userName.equals(user.userName) && userType == user.userType;
-        }
-
-        @Override
-        public int hashCode() {
-            int result = userName.hashCode();
-            result = 31 * result + userType.hashCode();
-            return result;
-        }
-    }
-
-
 }

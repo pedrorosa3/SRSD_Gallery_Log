@@ -1,0 +1,1 @@
+java -cp "D:\GitStuff\srsd_project\target" src.services.LogReadTerminal $args

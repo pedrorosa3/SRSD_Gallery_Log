@@ -1,4 +1,4 @@
-package src.services;
+package services;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
@@ -12,8 +12,8 @@ import java.util.List;
 import java.util.TreeMap;
 import java.util.TreeSet;
 
-import src.models.*;
-import src.services.LogReadTerminal.ParsedArgs;
+import models.*;
+import services.LogReadTerminal.ParsedArgs;
 
 public class LogReadFile {
 

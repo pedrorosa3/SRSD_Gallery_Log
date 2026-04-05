@@ -1,10 +1,11 @@
-package src.services;
+package services;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.stream.Stream;
-import src.models.*;
+
+import models.*;
 
 public class LogReadTerminal {
     public static void main(String[] args) {

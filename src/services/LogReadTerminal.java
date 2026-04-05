@@ -10,7 +10,7 @@ public class LogReadTerminal {
     public static void main(String[] args) {
         ParsedArgs parsedArgs = parseArgs(args);
         validateArgs(parsedArgs);
-        System.out.println("valid");
+        LogReadFile.process(parsedArgs);
     }
 
     private static ParsedArgs parseArgs(String [] args) {
@@ -31,10 +31,16 @@ public class LogReadTerminal {
                     parsedArgs.isIntersect = true;
                     break;
                 case "-E":
-                    parsedArgs.users.add(new User(args[++i], User.UserType.EMPLOYEE));
+                    if (args[++i].startsWith("-")) {
+                        exitInvalid();
+                    }
+                    parsedArgs.users.add(new User(args[i], User.UserType.EMPLOYEE));
                     break;
                 case "-G":
-                    parsedArgs.users.add(new User(args[++i], User.UserType.GUEST));
+                    if (args[++i].startsWith("-")) {
+                        exitInvalid();
+                    }
+                    parsedArgs.users.add(new User(args[i], User.UserType.GUEST));
                     break;
                 default:
                     parsedArgs.logFilePath = arg;
@@ -79,7 +85,7 @@ public class LogReadTerminal {
     }
 
 
-    private static class ParsedArgs {
+    public static class ParsedArgs {
         String token;
         String logFilePath;
         boolean isState;

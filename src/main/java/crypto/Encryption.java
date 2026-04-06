@@ -15,7 +15,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 public class Encryption {
 
-    private static String encryptEntry(String valuePlain, String token, byte[] prevMac) {
+    public static String EncryptLog(String valuePlain, String token, byte[] prevMac) {
         try {
             // Gerar IV aleatório (16 bytes para AES/CBC)
             byte[] iv = new byte[16];

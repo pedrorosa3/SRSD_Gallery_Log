@@ -83,6 +83,8 @@ public class LogAppendTerminal {
         
         // Não pode ter ambos Employee e Guest, nem faltar ambos
         if ((cmd.employee != null && cmd.guest != null) || (cmd.employee == null && cmd.guest == null)) throw new Exception();
+        // Tem de ter exatamente a flag -A ou a flag -L (nem as duas em simultâneo, nem nenhuma)
+        if (cmd.isArrival == null) throw new Exception("invalid");
         
         String name = cmd.employee != null ? cmd.employee : cmd.guest;
         if (!name.matches("[a-zA-Z]+")) throw new Exception();

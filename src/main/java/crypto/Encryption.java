@@ -108,5 +108,36 @@ public class Encryption {
 
         return true;
     }
+    
+    public static String DecryptLog(String rowBase64, String token) {
+        try {
+            // Derivar as chaves exatamente como no EncryptLog
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            byte[] ke = new byte[16];
+            System.arraycopy(hash, 0, ke, 0, 16);
+
+            // Descodificar de Base64
+            byte[] rowBytes = Base64.getDecoder().decode(rowBase64);
+            
+            // Extrair o MAC, o IV e o Ciphertext
+            byte[] storedMac = Arrays.copyOfRange(rowBytes, rowBytes.length - 32, rowBytes.length);
+            byte[] iv = Arrays.copyOfRange(rowBytes, 0, 16);
+            byte[] ciphertext = Arrays.copyOfRange(rowBytes, 16, rowBytes.length - 32);
+
+            // Desencriptar o Ciphertext
+            SecretKeySpec keySpec = new SecretKeySpec(ke, "AES");
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
+            
+            byte[] plainTextBytes = cipher.doFinal(ciphertext);
+            return new String(plainTextBytes, StandardCharsets.UTF_8);
+
+        } catch (Exception e) {
+            // Se falhar a desencriptação ou o Base64 estiver corrompido
+            return null; 
+        }
+    }
 
 }

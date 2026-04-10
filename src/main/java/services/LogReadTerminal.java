@@ -19,18 +19,10 @@ public class LogReadTerminal {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             switch (arg) {
-                case "-K":
-                    parsedArgs.token = args[++i];
-                    break;
-                case "-S":
-                    parsedArgs.isState = true;
-                    break;
-                case "-R":
-                    parsedArgs.isRooms = true;
-                    break;
-                case "-I":
-                    parsedArgs.isIntersect = true;
-                    break;
+                case "-K": parsedArgs.token = args[++i]; break;
+                case "-S": parsedArgs.isState = true; break;
+                case "-R": parsedArgs.isRooms = true; break;
+                case "-I": parsedArgs.isIntersect = true; break;
                 case "-E":
                     if (args[++i].startsWith("-")) {
                         exitInvalid();
@@ -43,41 +35,24 @@ public class LogReadTerminal {
                     }
                     parsedArgs.users.add(new User(args[i], User.UserType.GUEST));
                     break;
-                default:
-                    parsedArgs.logFilePath = arg;
-                    break;
+                default: parsedArgs.logFilePath = arg; break;
             }
         }
         return parsedArgs;
     }
 
     private static void validateArgs(ParsedArgs parsedArgs) {
-        if (parsedArgs.token == null || parsedArgs.token.isEmpty()) {
-            exitInvalid();
-        }
-        if (parsedArgs.logFilePath == null || parsedArgs.logFilePath.isEmpty()) {
-            exitInvalid();
-        }
+        if (parsedArgs.token == null || parsedArgs.token.isEmpty()) { exitInvalid(); }
+        if (parsedArgs.logFilePath == null || parsedArgs.logFilePath.isEmpty()) { exitInvalid(); }
         long activeFlags = Stream.of(parsedArgs.isState, parsedArgs.isRooms, parsedArgs.isIntersect)
                 .filter(flag -> flag).count();
-        if (activeFlags != 1) {
-            exitInvalid();
-        }
+        if (activeFlags != 1) { exitInvalid(); }
 
         HashSet<User> userSet = new HashSet<User>(parsedArgs.users);
-        if (userSet.size() != parsedArgs.users.size()) {
-            exitInvalid();
-        }
-        
-        if (parsedArgs.isState && !parsedArgs.users.isEmpty()) {
-            exitInvalid();
-        }
-        if (parsedArgs.isRooms && parsedArgs.users.isEmpty()) {
-            exitInvalid();
-        }
-        if (parsedArgs.isIntersect && parsedArgs.users.size() < 2) {
-            exitInvalid();
-        }
+        if (userSet.size() != parsedArgs.users.size()) { exitInvalid(); }
+        if (parsedArgs.isState && !parsedArgs.users.isEmpty()) { exitInvalid(); }
+        if (parsedArgs.isRooms && parsedArgs.users.isEmpty()) { exitInvalid(); }
+        if (parsedArgs.isIntersect && parsedArgs.users.size() < 2) { exitInvalid(); }
     }
 
     private static void exitInvalid() {

@@ -1,1 +1,1 @@
-java -cp "D:\GitStuff\srsd_project\target" src.services.LogReadTerminal $args
+java -cp "target/srsd-project-1.0-SNAPSHOT-jar-with-dependencies.jar" services.LogReadTerminal $args

@@ -3,21 +3,21 @@
 
 ## 🛠 Compile
 
-To compile a Java file and put the binary files generated in target folder, use:
+To compile the project using Maven use:
 
 ```bash
-javac -d target src/models/User.java src/services/LogReadTerminal.java src/services/LogReadFile.java
+mvn clean package
 ```
 
 ## 🛠 Run tests
 
 ```bash
-.\logread.ps1 -K secret -S .\src\logs\log2.txt 
-.\logread.ps1 -K secret -R -E Alice .\src\logs\log2.txt 
-.\logread.ps1 -K secret -R -G Charlie .\src\logs\log2.txt
-.\logread.ps1 -K secret -R -E Bob .\src\logs\log2.txt
-.\logread.ps1 -K secret -R -E Eve .\src\logs\log2.txt 
-.\logread.ps1 -K secret -R -G Diana .\src\logs\log2.txt
+.\logread.ps1 -K secret -S .\src\main\java\logs\log2.txt
+.\logread.ps1 -K secret -R -E Alice .\src\main\java\logs\log2.txt 
+.\logread.ps1 -K secret -R -G Charlie .\src\main\java\logs\log2.txt
+.\logread.ps1 -K secret -R -E Bob .\src\main\java\logs\log2.txt
+.\logread.ps1 -K secret -R -E Eve .\src\main\java\logs\log2.txt 
+.\logread.ps1 -K secret -R -G Diana .\src\main\java\logs\log2.txt
 ```
 
 # LogAppend

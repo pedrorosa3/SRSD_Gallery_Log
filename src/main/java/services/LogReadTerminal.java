@@ -24,18 +24,16 @@ public class LogReadTerminal {
                 case "-R": parsedArgs.isRooms = true; break;
                 case "-I": parsedArgs.isIntersect = true; break;
                 case "-E":
-                    if (args[++i].startsWith("-")) {
-                        exitInvalid();
-                    }
+                    if (args[++i].startsWith("-")) exitInvalid();
                     parsedArgs.users.add(new User(args[i], User.UserType.EMPLOYEE));
                     break;
                 case "-G":
-                    if (args[++i].startsWith("-")) {
-                        exitInvalid();
-                    }
+                    if (args[++i].startsWith("-")) exitInvalid();
                     parsedArgs.users.add(new User(args[i], User.UserType.GUEST));
                     break;
-                default: parsedArgs.logFilePath = arg; break;
+                default: 
+                    if (arg.startsWith("-")) exitInvalid();
+                    parsedArgs.logFilePath = arg; break;
             }
         }
         return parsedArgs;

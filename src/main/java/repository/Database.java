@@ -1,79 +1,93 @@
 package repository;
 
-import java.io.FileReader;
-import java.io.FileWriter;
+import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.Scanner;
 
-import com.opencsv.CSVReader;
-import com.opencsv.CSVWriter;
-import com.opencsv.exceptions.CsvValidationException;
-
+import crypto.Encryption;
 import models.DBCreateEntry;
 import models.DBDeleteEntry;
 import models.DBUpdateEntry;
 
 public class Database {
 
-    public static void CreateEntry(String token, DBCreateEntry entry) throws IOException, CsvValidationException {
-        // TODO: use token
-        try (CSVReader reader = new CSVReader(new FileReader("log_db.csv"))) {
-            String[] row;
+    private static final String DB_FILENAME = "log_db.bin";
 
-            while ((row = reader.readNext()) != null) {
-                if (row[0].equals(entry.username())) {
+    public static void CreateEntry(String token, DBCreateEntry entry) throws IOException {
+        try (Scanner sc = new Scanner(new File(DB_FILENAME))) {
+            String row;
+
+            while (sc.hasNextLine()) {
+                row = Encryption.DecryptLog(sc.nextLine(), token);
+                String[] fields = row.split(";");
+                if (fields[0].equals(entry.username())) {
                     throw new IllegalArgumentException("user " + entry.username() + " already exists");
                 }
             }
         }
 
-        try (CSVWriter writer = new CSVWriter(new FileWriter("log_db.csv", true))) {
-            String[] row = { entry.username(), String.valueOf(entry.room()),
-                    String.valueOf(entry.curr_line()), String.valueOf(entry.last_line()) };
-            writer.writeNext(row);
-        }
+        String newRow = entry.username() + ";" +
+                String.valueOf(entry.room()) + ";" +
+                String.valueOf(entry.curr_byte()) + ";" +
+                String.valueOf(entry.last_byte());
+
+        Files.writeString(Paths.get(DB_FILENAME), Encryption.EncryptLog(newRow, token, null),
+                StandardOpenOption.APPEND);
     }
 
-    public static void UpdateEntry(String token, DBUpdateEntry entry) throws CsvValidationException, IOException {
-        // TODO: use token
-        String[] row;
-        try (CSVReader reader = new CSVReader(new FileReader("log_db.csv"))) {
-            while ((row = reader.readNext()) != null) {
-                if (row[0].equals(entry.username())) {
-                    break;
-                }
+    public static void UpdateEntry(String token, DBUpdateEntry entry) throws IOException {
+        Path path = Paths.get(DB_FILENAME);
+        List<String> lines = Files.readAllLines(path);
+
+        boolean found = false;
+
+        for (int i = 0; i < lines.size(); i++) {
+            String[] row = Encryption.DecryptLog(lines.get(i), token).split(";");
+
+            if (row[0].equals(entry.username())) {
+                String updatedRow = entry.username() + ";" +
+                        entry.room() + ";" +
+                        entry.curr_byte() + ";" +
+                        row[2];
+
+                lines.set(i, Encryption.EncryptLog(updatedRow, token, null));
+                found = true;
+                break;
             }
         }
-        if (row == null) {
+
+        if (!found) {
             throw new IllegalArgumentException("user " + entry.username() + " doesn't exist");
         }
-        try (CSVWriter writer = new CSVWriter(new FileWriter("log_db.csv", true))) {
-            String[] updatedRow = { entry.username(), String.valueOf(entry.room()),
-                    String.valueOf(entry.curr_line()), String.valueOf(row[2]) };
-            writer.writeNext(updatedRow);
-        }
+
+        Files.write(path, lines);
     }
 
-    public static void DeleteEntry(String token, DBDeleteEntry entry) throws IOException, CsvValidationException {
-        // TODO: use token
-        try (CSVReader reader = new CSVReader(new FileReader("log_db.csv"));
-            CSVWriter writer = new CSVWriter(new FileWriter("temp.csv"))) {
-            String[] row;
+    public static void DeleteEntry(String token, DBDeleteEntry entry) throws IOException {
+        Path path = Paths.get(DB_FILENAME);
+        List<String> lines = Files.readAllLines(path);
 
-            while ((row = reader.readNext()) != null) {
-                if (row[0].equals(entry.username())) {
-                    continue;
-                }
+        boolean found = false;
 
-                writer.writeNext(row);
+        for (int i = 0; i < lines.size(); i++) {
+            String[] row = Encryption.DecryptLog(lines.get(i), token).split(";");
+
+            if (row[0].equals(entry.username())) {
+                lines.remove(i);
+                found = true;
+                break;
             }
         }
 
-        Files.move(
-                Paths.get("temp.csv"),
-                Paths.get("log_db.csv"),
-                StandardCopyOption.REPLACE_EXISTING);
+        if (!found) {
+            throw new IllegalArgumentException("user " + entry.username() + " doesn't exist");
+        }
+
+        Files.write(path, lines);
     }
 }

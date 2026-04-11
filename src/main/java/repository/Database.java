@@ -10,9 +10,7 @@ import java.util.List;
 import java.util.Scanner;
 
 import crypto.Encryption;
-import models.DBEntry;
-import models.User;
-import models.User.UserType;
+import models.*;
 
 public class Database {
 

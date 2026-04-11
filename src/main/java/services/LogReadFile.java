@@ -16,7 +16,7 @@ import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.stream.Collectors;
 
-import Utils.ParsedArgs;
+import Utils.*;
 import crypto.Encryption;
 import models.*;
 
@@ -26,14 +26,14 @@ public class LogReadFile {
     * Process the log file based on the parsed arguments.
     * @param parsedArgs The parsed command-line arguments.
     */
-    public static void process(ParsedArgs parsedArgs) {
+    public static void process(LogReadArgs parsedArgs) {
         try {
             if (parsedArgs.isState) {
-                LogReadState(parsedArgs.logFilePath, parsedArgs.token);
+                LogReadState(parsedArgs.logFile, parsedArgs.token);
             } else if (parsedArgs.isRooms) {
-                LogReadRooms(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
+                LogReadRooms(parsedArgs.logFile, parsedArgs.users, parsedArgs.token);
             } else if (parsedArgs.isIntersect) {
-                LogReadIntersect(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
+                LogReadIntersect(parsedArgs.logFile, parsedArgs.users, parsedArgs.token);
             }
         } catch (IOException e) {
             System.out.println("invalid");

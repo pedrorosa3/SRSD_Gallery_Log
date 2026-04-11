@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 
+import Utils.*;
 import crypto.Encryption;
 import models.DBEntry;
 import models.User;
@@ -13,24 +14,11 @@ import repository.Database;
 
 public class LogAppendTerminal {
 
-    private static final int ERROR_CODE = 111;
     private static final String DB_FILENAME = "repository/log_db.bin";
-
-    // Classe para armazenar os argumentos processados
-    static class CommandArgs {
-        Integer timestamp = null;
-        String token = null;
-        String employee = null;
-        String guest = null;
-        Boolean isArrival = null;
-        Integer roomId = null;
-        String logFile = null;
-        String batchFile = null;
-    }
 
     public static void main(String[] args) {
         if (args.length == 0)
-            invalidExit();
+            Utils.exitInvalid();
 
         // 1. Verificar se é modo Batch (-B)
         if (args[0].equals("-B") && args.length == 2) {
@@ -40,7 +28,7 @@ public class LogAppendTerminal {
 
         // 2. Modo Normal
         try {
-            CommandArgs parsedArgs = parseArgs(args);
+            LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
             validateArgs(parsedArgs);
             File db = new File(DB_FILENAME);
             if (!db.exists()) {
@@ -48,60 +36,11 @@ public class LogAppendTerminal {
             }
             validateAndAppendCached(parsedArgs);
         } catch (Exception e) {
-            invalidExit();
+            Utils.exitInvalid();
         }
     }
 
-    // Função para sair com erro 111
-    private static void invalidExit() {
-        System.out.println("invalid");
-        System.exit(ERROR_CODE);
-    }
-
-    // Função para imprimir erro no modo batch sem sair do programa
-    private static void invalidBatchLine() {
-        System.out.println("invalid");
-    }
-
-    private static CommandArgs parseArgs(String[] args) throws Exception {
-        CommandArgs cmd = new CommandArgs();
-
-        for (int i = 0; i < args.length; i++) {
-            switch (args[i]) {
-                case "-T":
-                    cmd.timestamp = Integer.parseInt(args[++i]);
-                    break;
-                case "-K":
-                    cmd.token = args[++i];
-                    break;
-                case "-E":
-                    cmd.employee = args[++i];
-                    break;
-                case "-G":
-                    cmd.guest = args[++i];
-                    break;
-                case "-A":
-                    cmd.isArrival = true;
-                    break;
-                case "-L":
-                    cmd.isArrival = false;
-                    break;
-                case "-R":
-                    cmd.roomId = Integer.parseInt(args[++i]);
-                    break;
-                default:
-                    // Se não é uma flag, deve ser o nome do ficheiro log
-                    if (cmd.logFile == null && !args[i].startsWith("-")) {
-                        cmd.logFile = args[i];
-                    } else {
-                        throw new IllegalArgumentException("Argumentos inválidos");
-                    }
-            }
-        }
-        return cmd;
-    }
-
-    private static void validateArgs(CommandArgs cmd) throws Exception {
+    private static void validateArgs(LogAppendArgs cmd) throws Exception {
         // 1. Validações Sintáticas Iniciais
         if (cmd.logFile == null || cmd.timestamp == null || cmd.token == null)
             throw new Exception();
@@ -125,7 +64,7 @@ public class LogAppendTerminal {
             throw new Exception();
     }
 
-    private static void validateAndAppendCached(CommandArgs cmd) throws Exception {
+    private static void validateAndAppendCached(LogAppendArgs cmd) throws Exception {
         // validar a cronologia do tempo
         int lastTimestamp = Database.GetLastTimestamp(cmd.token);
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
@@ -228,7 +167,7 @@ public class LogAppendTerminal {
     private static void processBatch(String batchFilePath) {
         File batchFile = new File(batchFilePath);
         if (!batchFile.exists()) {
-            invalidExit();
+            Utils.exitInvalid();
         }
 
         try (BufferedReader br = new BufferedReader(new FileReader(batchFile))) {
@@ -239,13 +178,13 @@ public class LogAppendTerminal {
 
                 // Opção -B não pode aparecer dentro do batch
                 if (line.contains("-B")) {
-                    invalidBatchLine();
+                    Utils.invalidBatchLine();
                     continue;
                 }
 
                 try {
                     String[] args = line.trim().split("\\s+");
-                    CommandArgs parsedArgs = parseArgs(args);
+                    LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
                     File db = new File(DB_FILENAME);
                     if (!db.exists()) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
@@ -253,11 +192,11 @@ public class LogAppendTerminal {
                         validateAndAppendCached(parsedArgs);
                     }
                 } catch (Exception e) {
-                    invalidBatchLine(); // No batch mode, o erro numa linha não para as restantes
+                    Utils.invalidBatchLine(); // No batch mode, o erro numa linha não para as restantes
                 }
             }
         } catch (IOException e) {
-            invalidExit();
+            Utils.exitInvalid();
         }
     }
 

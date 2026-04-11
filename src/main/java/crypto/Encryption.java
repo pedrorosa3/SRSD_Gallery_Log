@@ -121,7 +121,6 @@ public class Encryption {
             byte[] rowBytes = Base64.getDecoder().decode(rowBase64);
             
             // Extrair o MAC, o IV e o Ciphertext
-            byte[] storedMac = Arrays.copyOfRange(rowBytes, rowBytes.length - 32, rowBytes.length);
             byte[] iv = Arrays.copyOfRange(rowBytes, 0, 16);
             byte[] ciphertext = Arrays.copyOfRange(rowBytes, 16, rowBytes.length - 32);
 

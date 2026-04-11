@@ -43,36 +43,36 @@ public class LogAppendTerminal {
     private static void validateArgs(LogAppendArgs cmd) throws Exception {
         // 1. Validações Sintáticas Iniciais
         if (cmd.logFile == null || cmd.timestamp == null || cmd.token == null)
-            throw new Exception();
+            Utils.exitInvalid();
         if (cmd.timestamp < 1 || cmd.timestamp > 1073741823)
-            throw new Exception();
+            Utils.exitInvalid();
         if (cmd.roomId != null && (cmd.roomId < 0 || cmd.roomId > 1073741823))
-            throw new Exception();
+            Utils.exitInvalid();
 
         // Não pode ter ambos Employee e Guest, nem faltar ambos
-        if ((cmd.employee != null && cmd.guest != null) || (cmd.employee == null && cmd.guest == null))
-            throw new Exception();
+        if ((cmd.user == null) || (cmd.user.getUserType() != User.UserType.EMPLOYEE && cmd.user.getUserType() != User.UserType.GUEST))
+            Utils.exitInvalid();
         // Tem de ter exatamente a flag -A ou a flag -L (nem as duas em simultâneo, nem
         // nenhuma)
         if (cmd.isArrival == null)
-            throw new Exception("invalid");
+            Utils.exitInvalid();
 
-        String name = cmd.employee != null ? cmd.employee : cmd.guest;
+        String name = cmd.user.getUserName();
         if (!name.matches("[a-zA-Z]+"))
-            throw new Exception();
+            Utils.exitInvalid();
         if (!cmd.token.matches("[a-zA-Z0-9]+"))
-            throw new Exception();
+            Utils.exitInvalid();
     }
 
     private static void validateAndAppendCached(LogAppendArgs cmd) throws Exception {
         // validar a cronologia do tempo
         int lastTimestamp = Database.GetLastTimestamp(cmd.token);
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
-            throw new Exception("invalid");
+            Utils.exitInvalid();
         }
 
         // lógica de validação da galeria
-        String name = cmd.employee != null ? cmd.employee : cmd.guest;
+        String name = cmd.user.getUserName();
 
         DBEntry userState = Database.GetEntry(cmd.token, name);
         boolean isCurrentlyInGallery = false;
@@ -90,30 +90,30 @@ public class LogAppendTerminal {
                 // Chegada à galeria (-A sem -R)
                 // Não pode estar já na galeria nem já dentro de uma sala
                 if (isCurrentlyInGallery || isCurrentlyInRoom)
-                    throw new Exception("invalid");
+                    Utils.exitInvalid();
             } else {
                 // Chegada a uma sala (-A com -R)
                 // TEM de estar na galeria, e NÃO pode estar noutra sala [cite: 701, 702]
                 if (!isCurrentlyInGallery || isCurrentlyInRoom)
-                    throw new Exception("invalid");
+                    Utils.exitInvalid();
             }
         } else {
             if (cmd.roomId == null) {
                 // Saída da galeria (-L sem -R)
                 // TEM de estar na galeria, e NÃO pode estar dentro de nenhuma sala [cite: 707]
                 if (!isCurrentlyInGallery || isCurrentlyInRoom)
-                    throw new Exception("invalid");
+                    Utils.exitInvalid();
             } else {
                 // Saída de uma sala (-L com -R)
                 // TEM de estar exatamente nesta sala para poder sair [cite: 708]
                 if (!isCurrentlyInRoom || !currentRoom.equals(cmd.roomId))
-                    throw new Exception("invalid");
+                    Utils.exitInvalid();
             }
         }
 
         // formatar a nova entrada em plaintext
         String actionStr = cmd.isArrival ? "IN" : "OUT";
-        String userStr = (cmd.employee != null) ? "-E" : "-G";
+        String userStr = (cmd.user.getUserType() == User.UserType.EMPLOYEE) ? "-E" : "-G";
         String roomStr = (cmd.roomId != null) ? cmd.roomId.toString() : "GALLERY";
 
         Path path = Paths.get(cmd.logFile);
@@ -152,11 +152,11 @@ public class LogAppendTerminal {
                 PrintWriter out = new PrintWriter(bw)) {
             out.println(encryptedRow);
         } catch (IOException e) {
-            throw new Exception("invalid");
+            Utils.exitInvalid();
         }
 
         // update db
-        DBEntry newEntry = new DBEntry(new User(name, userStr), cmd.roomId, currOffset, cmd.timestamp);
+        DBEntry newEntry = new DBEntry(cmd.user, cmd.roomId, currOffset, cmd.timestamp);
         try {
             Database.UpdateEntry(cmd.token, newEntry);
         } catch (IllegalArgumentException e) {
@@ -232,22 +232,28 @@ public class LogAppendTerminal {
                 Integer roomId = null;
                 if (!room.equals("GALLERY"))
                     roomId = Integer.parseInt(room);
-                String type = parts[2]; // "-E" ou "-G"
-                String name = parts[3];
+                User user = null;
+                if (parts[2].startsWith("-E ")) {
+                    user = new User(parts[2].substring(3), User.UserType.EMPLOYEE);
+                } else if (parts[2].startsWith("-G ")) {
+                    user = new User(parts[2].substring(3), User.UserType.GUEST);
+                } else {
+                    Utils.exitInvalid();
+                }
                 boolean isArrival = parts[4].equals("A");
                 long byteOffset = Long.parseLong(parts[5]);
 
                 if (isArrival) {
                     if (roomId == null)
-                        upsertEntry(token, new DBEntry(new User(name, type), -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, -1, byteOffset, ts));
                     else {
-                        upsertEntry(token, new DBEntry(new User(name, type), roomId, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, roomId, byteOffset, ts));
                     }
                 } else { // is Departure
                     if (roomId == null)
-                        Database.DeleteEntry(token, name);
+                        Database.DeleteEntry(token, user.getUserName());
                     else {
-                        upsertEntry(token, new DBEntry(new User(name, type), -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, -1, byteOffset, ts));
                     }
                 }
             }

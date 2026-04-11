@@ -1,23 +1,22 @@
 package Utils;
 
+import models.User;
 
 /*
  * Classe para armazenar os argumentos processados
  */
 public class LogAppendArgs extends ParsedArgs {
     public final Integer timestamp;
-    public final String employee;
-    public final String guest;
+    public final User user;
     public final Boolean isArrival;
     public final Integer roomId;
     public final String batchFile;
 
-    private LogAppendArgs(Integer timestamp, String token, String employee, String guest,
+    private LogAppendArgs(Integer timestamp, String token, User user,
             Boolean isArrival, Integer roomId, String logFile, String batchFile)  {
         super(token, logFile);
         this.timestamp = timestamp;
-        this.employee = employee;
-        this.guest = guest;
+        this.user = user;
         this.isArrival = isArrival;
         this.roomId = roomId;
         this.batchFile = batchFile;
@@ -26,8 +25,7 @@ public class LogAppendArgs extends ParsedArgs {
     public static LogAppendArgs parse(String[] args) {
         Integer timestamp = null;
         String token = null;
-        String employee = null;
-        String guest = null;
+        User user = null;
         Boolean isArrival = null;
         Integer roomId = null;
         String logFile = null;
@@ -37,8 +35,12 @@ public class LogAppendArgs extends ParsedArgs {
             switch (args[i]) {
                 case "-T": timestamp = Integer.parseInt(args[++i]); break;
                 case "-K": token = args[++i]; break;
-                case "-E": employee = args[++i]; break;
-                case "-G": guest = args[++i]; break;
+                case "-E": 
+                    if (args[++i].startsWith("-")) Utils.exitInvalid();    
+                    user = new User(args[++i], User.UserType.EMPLOYEE); break;
+                case "-G": 
+                    if (args[++i].startsWith("-")) Utils.exitInvalid();
+                    user = new User(args[++i], User.UserType.GUEST); break;
                 case "-A": isArrival = true; break;
                 case "-L": isArrival = false; break;
                 case "-R": roomId = Integer.parseInt(args[++i]); break;
@@ -51,6 +53,6 @@ public class LogAppendArgs extends ParsedArgs {
             }
         }
 
-        return new LogAppendArgs(timestamp, token, employee, guest, isArrival, roomId, logFile, batchFile);
+        return new LogAppendArgs(timestamp, token, user, isArrival, roomId, logFile, batchFile);
     }
 }

@@ -18,10 +18,13 @@ import java.util.stream.Collectors;
 
 import crypto.Encryption;
 import models.*;
-import services.LogReadTerminal.ParsedArgs;
 
 public class LogReadFile {
 
+    /*
+    * Process the log file based on the parsed arguments.
+    * @param parsedArgs The parsed command-line arguments.
+    */
     public static void process(ParsedArgs parsedArgs) {
         try {
             if (parsedArgs.isState) {
@@ -37,6 +40,11 @@ public class LogReadFile {
         }
     }
 
+    /*
+     * Process the log file to read the state of the gallery and rooms.
+     * @param logFilePath The path to the log file.
+     * @param token The encryption token.
+     */
     private static void LogReadState(String logFilePath, String token) throws IOException {
         try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
             HashSet<String> employees = new HashSet<>();
@@ -77,6 +85,13 @@ public class LogReadFile {
         }
     }
 
+
+    /*
+    * Process the log file to give the path of a user through the rooms of the gallery.
+    * @param logFilePath The path to the log file.
+    * @param userList The list of users to query.
+    * @param token The encryption token.
+    */
     private static void LogReadRooms(String logFilePath, List<User> userList, String token) throws IOException {
         User user = userList.get(0);
         List<String> rooms = new ArrayList<>();
@@ -111,6 +126,13 @@ public class LogReadFile {
         System.out.println(String.join(",", rooms));
     }
 
+    /*
+     * Find the last offset of each user in the log file.
+     * @param filePath The path to the log file.
+     * @param users The list of users to query.
+     * @param token The encryption token.
+     * @return A map of users to their last offsets.
+     */
     private static Map<User, Long> findLastOffsets(String filePath, List<User> users, String token) throws IOException {
         Map<User, Long> offsets = new HashMap<>();
         Set<User> found = new HashSet<>();
@@ -149,6 +171,12 @@ public class LogReadFile {
         return offsets;
     }
 
+    /*
+     * Process the log file to find the intersection of rooms visited by a list of users.
+     * @param logFilePath The path to the log file.
+     * @param userList The list of users to query.
+     * @param token The encryption token.
+     */
     public static void LogReadIntersect(String logFilePath, List<User> userList, String token) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(logFilePath, "r")) {
             Map<User, Long> lastOffsets = findLastOffsets(logFilePath, userList, token);
@@ -212,6 +240,4 @@ public class LogReadFile {
             if (!output.isEmpty()) System.out.println(output);
         }
     }
-
-    record UserOffset(User user, long offset) {}
 }

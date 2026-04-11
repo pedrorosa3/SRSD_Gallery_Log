@@ -10,38 +10,41 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.PriorityQueue;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.stream.Collectors;
 
+import crypto.Encryption;
 import models.*;
 import services.LogReadTerminal.ParsedArgs;
 
 public class LogReadFile {
 
     public static void process(ParsedArgs parsedArgs) {
-        //TODO implement token validation
-        if (parsedArgs.isState) {
-            LogReadState(parsedArgs.logFilePath);
-        } else if (parsedArgs.isRooms) {
-            try {
-                LogReadRooms(parsedArgs.logFilePath, parsedArgs.users);
-            } catch (IOException e) {
-                e.printStackTrace();
+        try {
+            if (parsedArgs.isState) {
+                LogReadState(parsedArgs.logFilePath, parsedArgs.token);
+            } else if (parsedArgs.isRooms) {
+                LogReadRooms(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
+            } else if (parsedArgs.isIntersect) {
+                //LogReadIntersect(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
             }
-        } else if (parsedArgs.isIntersect) {
-            // LogReadIntersect(parsedArgs.logFilePath, parsedArgs.users);
+        } catch (IOException e) {
+            System.out.println("invalid");
+            System.exit(111);
         }
     }
 
-    private static void LogReadState(String logFilePath) {
+    private static void LogReadState(String logFilePath, String token) throws IOException {
         try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
             HashSet<String> employees = new HashSet<>();
             HashSet<String> guests = new HashSet<>();
             HashMap<Integer, TreeSet<String>> roomOccupants = new HashMap<>();
             String line;
 
-            while ((line = br.readLine()) != null) {
+            while ((line = Encryption.DecryptLog(br.readLine(), token)) != null) {
                 if (line.trim().isEmpty()) continue;
                 LogEntry entry = LogEntry.parse(line);
 
@@ -71,18 +74,15 @@ public class LogReadFile {
             System.out.println(String.join(",", new TreeSet<>(guests)));
             new TreeMap<>(roomOccupants).forEach((roomId, occupants) ->
                 System.out.println(roomId + ": " + String.join(",", occupants)));
-
-        } catch (IOException e) {
-            e.printStackTrace();
         }
     }
 
-    private static void LogReadRooms(String logFilePath, List<User> userList) throws IOException {
+    private static void LogReadRooms(String logFilePath, List<User> userList, String token) throws IOException {
         User user = userList.get(0);
         List<String> rooms = new ArrayList<>();
 
         try (RandomAccessFile raf = new RandomAccessFile(logFilePath, "r")) {
-            Map<User, Long> offsets = findLastOffsets(logFilePath, userList);
+            Map<User, Long> offsets = findLastOffsets(logFilePath, userList, token);
 
             if (!offsets.containsKey(user)) {
                 System.out.println();
@@ -94,10 +94,11 @@ public class LogReadFile {
             while (currentOffset != -1) {
                 raf.seek(currentOffset);
                 String line = raf.readLine();
-                System.out.println("Read line: " + line);
-                if (line == null) break;
+                if (line == null || line.trim().isEmpty()) continue;
+                String decryptedLine = Encryption.DecryptLog(line, token);
+                if (decryptedLine == null) continue; // skip invalid lines
 
-                LogEntry entry = LogEntry.parse(line);
+                LogEntry entry = LogEntry.parse(decryptedLine);
 
                 if (!entry.getRoom().equals("GALLERY") && entry.getAction().equals("IN")) {
                     rooms.add(entry.getRoom());
@@ -110,7 +111,7 @@ public class LogReadFile {
         System.out.println(String.join(",", rooms));
     }
 
-    private static Map<User, Long> findLastOffsets(String filePath, List<User> users) throws IOException {
+    private static Map<User, Long> findLastOffsets(String filePath, List<User> users, String token) throws IOException {
         Map<User, Long> offsets = new HashMap<>();
         Set<User> found = new HashSet<>();
 
@@ -126,23 +127,17 @@ public class LogReadFile {
                 if (c == '\n') {
                     String line = sb.reverse().toString();
                     sb.setLength(0);
-
                     if (!line.trim().isEmpty()) {
-                        String[] parts = line.split(", ");
-                        if (parts.length >= 3) {
-                            String[] tokens = parts[2].trim().split(" ");
-                            if (tokens.length >= 2) {
-                                String lineType = tokens[0];
-                                String lineName = tokens[1];
-
-                                for (User user : users) {
-                                    if (!found.contains(user)
-                                            && lineName.equals(user.getUserName())
-                                            && lineType.equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
-                                        offsets.put(user, pointer + 2);
-                                        found.add(user);
-                                    }
-                                }
+                        String decryptedLine = Encryption.DecryptLog(line, token);
+                        if (decryptedLine == null) continue; // skip invalid lines
+                        LogEntry entry = LogEntry.parse(decryptedLine);
+                        for (User user : users) {
+                            if (!found.contains(user)
+                                    && entry.getUserName().equals(user.getUserName())
+                                    && entry.getUserType().equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
+                                offsets.put(user, pointer + 2);
+                                found.add(user);
+                                continue;
                             }
                         }
                     }

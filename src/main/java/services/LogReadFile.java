@@ -29,7 +29,7 @@ public class LogReadFile {
             } else if (parsedArgs.isRooms) {
                 LogReadRooms(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
             } else if (parsedArgs.isIntersect) {
-                //LogReadIntersect(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
+                LogReadIntersect(parsedArgs.logFilePath, parsedArgs.users, parsedArgs.token);
             }
         } catch (IOException e) {
             System.out.println("invalid");
@@ -148,4 +148,70 @@ public class LogReadFile {
         }
         return offsets;
     }
+
+    public static void LogReadIntersect(String logFilePath, List<User> userList, String token) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(logFilePath, "r")) {
+            Map<User, Long> lastOffsets = findLastOffsets(logFilePath, userList, token);
+            if (lastOffsets.size() < userList.size()) return;
+
+            PriorityQueue<UserOffset> orderedOffsets = new PriorityQueue<>(
+                (a, b) -> Long.compare(b.offset(), a.offset())
+            );
+            for (Map.Entry<User, Long> userLastAction : lastOffsets.entrySet()) {
+                orderedOffsets.offer(new UserOffset(userLastAction.getKey(), userLastAction.getValue()));
+            }
+
+            Set<User> firstActionSeen = new HashSet<>();
+            Map<String, Set<User>> roomVisits = new HashMap<>();
+            Set<String> result = new HashSet<>();
+
+            while (!orderedOffsets.isEmpty()) {
+                UserOffset currentOffset = orderedOffsets.poll();
+                raf.seek(currentOffset.offset());
+                String line = raf.readLine();
+                if (line == null || line.trim().isEmpty()) continue;
+                String decryptedLine = Encryption.DecryptLog(line, token);
+                if (decryptedLine == null) continue; // skip invalid lines
+
+                LogEntry entry = LogEntry.parse(decryptedLine);
+                User user = currentOffset.user();
+
+                // if OUT: the user visited the room;
+                // if IN && is the first action seen, the user is on the room;
+                // if IN && is not the first action seen, the user left the room;
+
+                if (!"GALLERY".equals(entry.getRoom())) {
+                    if ("OUT".equals(entry.getAction())) {
+                        roomVisits.computeIfAbsent(entry.getRoom(), k -> new HashSet<>()).add(user);
+                    } else if ("IN".equals(entry.getAction())) {
+                        if (!firstActionSeen.contains(user)) {
+                            roomVisits.computeIfAbsent(entry.getRoom(), k -> new HashSet<>()).add(user);
+                        } else {
+                            roomVisits.computeIfAbsent(entry.getRoom(), k -> new HashSet<>()).remove(user);
+                        }
+                    }
+
+                    if (roomVisits.containsKey(entry.getRoom()) && roomVisits.get(entry.getRoom()).containsAll(userList)) {
+                        result.add(entry.getRoom());
+                    }
+                }
+
+                firstActionSeen.add(user);
+
+                if (entry.getPrevOffset() != -1) {
+                    orderedOffsets.offer(new UserOffset(user, entry.getPrevOffset()));
+                }
+            }
+
+            String output = result.stream()
+                .map(Integer::parseInt)
+                .sorted()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+
+            if (!output.isEmpty()) System.out.println(output);
+        }
+    }
+
+    record UserOffset(User user, long offset) {}
 }

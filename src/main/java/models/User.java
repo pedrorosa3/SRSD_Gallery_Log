@@ -9,6 +9,17 @@ public class User {
             this.userType = userType;
         }
 
+        public User(String userName, String type) {
+            this.userName = userName;
+
+            UserType userType = UserType.EMPLOYEE;
+            if (type.equals("-G")) {
+                userType = UserType.GUEST;
+            }
+
+            this.userType = userType;
+        }
+
         public enum UserType {
             EMPLOYEE,
             GUEST

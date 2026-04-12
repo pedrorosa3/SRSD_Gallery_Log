@@ -17,11 +17,17 @@ public class Database {
     private static final String DB_FILENAME = "repository/log_db.bin";
 
     public static void CreateEntry(String token, DBEntry entry) throws IOException {
+        File file = new File(DB_FILENAME);
+
+        if (!file.exists()) {
+            file.getParentFile().mkdirs();
+            file.createNewFile();
+        }
         try (Scanner sc = new Scanner(new File(DB_FILENAME))) {
             String row;
 
             while (sc.hasNextLine()) {
-                row = Encryption.DecryptLog(sc.nextLine(), token);
+                row = Encryption.DecryptLog(sc.nextLine(), token).plaintext();
                 String[] fields = row.split(",");
                 if (fields[0].equals(entry.user().getUserName())) {
                     throw new IllegalArgumentException("user " + entry.user().getUserName() + " already exists");
@@ -41,12 +47,17 @@ public class Database {
 
     public static void UpdateEntry(String token, DBEntry entry) throws IOException {
         Path path = Paths.get(DB_FILENAME);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path.getParent());
+            Files.createFile(path);
+            CreateEntry(token, entry);
+        }
         List<String> lines = Files.readAllLines(path);
 
         boolean found = false;
 
         for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).split(",");
+            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(entry.user().getUserName())) {
                 String updatedRow = entry.user().getUserName() + "," +
@@ -75,7 +86,7 @@ public class Database {
         boolean found = false;
 
         for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).split(",");
+            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(user)) {
                 lines.remove(i);
@@ -93,10 +104,15 @@ public class Database {
 
     public static DBEntry GetEntry(String token, String user) throws IOException {
         Path path = Paths.get(DB_FILENAME);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path.getParent());
+            Files.createFile(path);
+            return null;
+        }
         List<String> lines = Files.readAllLines(path);
 
         for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).split(",");
+            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(user)) {
                 return new DBEntry(new User(row[0], row[1]), Integer.parseInt(row[2]),
@@ -110,11 +126,16 @@ public class Database {
 
     public static int GetLastTimestamp(String token) throws IOException {
         Path path = Paths.get(DB_FILENAME);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path.getParent());
+            Files.createFile(path);
+            return 0;
+        }
         List<String> lines = Files.readAllLines(path);
         int lastTimestamp = 0;
 
         for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).split(",");
+            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             int timestamp = Integer.parseInt(row[4]);
             if (timestamp > lastTimestamp) {
@@ -127,10 +148,15 @@ public class Database {
 
     public static long GetLastUserOffset(String token, String user) throws IOException {
         Path path = Paths.get(DB_FILENAME);
+        if (!Files.exists(path)) {
+            Files.createDirectories(path.getParent());
+            Files.createFile(path);
+            return -1;
+        }
         List<String> lines = Files.readAllLines(path);
 
         for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).split(",");
+            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(user)) {
                 return Long.parseLong(row[3]);

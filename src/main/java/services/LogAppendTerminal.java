@@ -9,6 +9,7 @@ import java.util.*;
 import Utils.*;
 import crypto.Encryption;
 import models.DBEntry;
+import models.DecryptedLog;
 import models.User;
 import repository.Database;
 
@@ -17,8 +18,9 @@ public class LogAppendTerminal {
     private static final String DB_FILENAME = "repository/log_db.bin";
 
     public static void main(String[] args) {
-        if (args.length == 0)
+        if (args.length == 0) {
             Utils.exitInvalid();
+        }
 
         // 1. Verificar se é modo Batch (-B)
         if (args[0].equals("-B") && args.length == 2) {
@@ -42,29 +44,43 @@ public class LogAppendTerminal {
 
     private static void validateArgs(LogAppendArgs cmd) throws Exception {
         // 1. Validações Sintáticas Iniciais
-        if (cmd.logFile == null || cmd.timestamp == null || cmd.token == null)
+        if (cmd.logFile == null || cmd.timestamp == null || cmd.token == null) {
             Utils.exitInvalid();
-        if (cmd.timestamp < 1 || cmd.timestamp > 1073741823)
+        }
+        if (cmd.timestamp < 1 || cmd.timestamp > 1073741823) {
             Utils.exitInvalid();
-        if (cmd.roomId != null && (cmd.roomId < 0 || cmd.roomId > 1073741823))
+        }
+        if (cmd.roomId != null && (cmd.roomId < 0 || cmd.roomId > 1073741823)) {
             Utils.exitInvalid();
+        }
 
         // Não pode ter ambos Employee e Guest, nem faltar ambos
-        if ((cmd.user == null) || (cmd.user.getUserType() != User.UserType.EMPLOYEE && cmd.user.getUserType() != User.UserType.GUEST))
+        if ((cmd.user == null)
+                || (cmd.user.getUserType() != User.UserType.EMPLOYEE
+                        && cmd.user.getUserType() != User.UserType.GUEST)) {
             Utils.exitInvalid();
+        }
         // Tem de ter exatamente a flag -A ou a flag -L (nem as duas em simultâneo, nem
         // nenhuma)
-        if (cmd.isArrival == null)
+        if (cmd.isArrival == null) {
             Utils.exitInvalid();
+        }
 
         String name = cmd.user.getUserName();
-        if (!name.matches("[a-zA-Z]+"))
+        if (!name.matches("[a-zA-Z]+")) {
             Utils.exitInvalid();
-        if (!cmd.token.matches("[a-zA-Z0-9]+"))
+        }
+        if (!cmd.token.matches("[a-zA-Z0-9]+")) {
             Utils.exitInvalid();
+        }
     }
 
     private static void validateAndAppendCached(LogAppendArgs cmd) throws Exception {
+        Path path = Paths.get(cmd.logFile);
+        if (!Files.exists(path)) {
+            Files.createFile(path);
+        }
+
         // validar a cronologia do tempo
         int lastTimestamp = Database.GetLastTimestamp(cmd.token);
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
@@ -83,31 +99,35 @@ public class LogAppendTerminal {
             currentRoom = userState.room();
         }
 
-        boolean isCurrentlyInRoom = (currentRoom != null);
+        boolean isCurrentlyInRoom = (currentRoom != null && currentRoom != -1);
 
         if (cmd.isArrival) {
             if (cmd.roomId == null) {
                 // Chegada à galeria (-A sem -R)
                 // Não pode estar já na galeria nem já dentro de uma sala
-                if (isCurrentlyInGallery || isCurrentlyInRoom)
+                if (isCurrentlyInGallery || isCurrentlyInRoom) {
                     Utils.exitInvalid();
+                }
             } else {
                 // Chegada a uma sala (-A com -R)
                 // TEM de estar na galeria, e NÃO pode estar noutra sala [cite: 701, 702]
-                if (!isCurrentlyInGallery || isCurrentlyInRoom)
+                if (!isCurrentlyInGallery || isCurrentlyInRoom) {
                     Utils.exitInvalid();
+                }
             }
         } else {
             if (cmd.roomId == null) {
                 // Saída da galeria (-L sem -R)
                 // TEM de estar na galeria, e NÃO pode estar dentro de nenhuma sala [cite: 707]
-                if (!isCurrentlyInGallery || isCurrentlyInRoom)
+                if (!isCurrentlyInGallery || isCurrentlyInRoom) {
                     Utils.exitInvalid();
+                }
             } else {
                 // Saída de uma sala (-L com -R)
                 // TEM de estar exatamente nesta sala para poder sair [cite: 708]
-                if (!isCurrentlyInRoom || !currentRoom.equals(cmd.roomId))
+                if (!isCurrentlyInRoom || !currentRoom.equals(cmd.roomId)) {
                     Utils.exitInvalid();
+                }
             }
         }
 
@@ -116,13 +136,12 @@ public class LogAppendTerminal {
         String userStr = (cmd.user.getUserType() == User.UserType.EMPLOYEE) ? "-E" : "-G";
         String roomStr = (cmd.roomId != null) ? cmd.roomId.toString() : "GALLERY";
 
-        Path path = Paths.get(cmd.logFile);
         long currOffset = Files.size(path);
         long lastOffset = Database.GetLastUserOffset(cmd.token, name);
 
         String plainText = cmd.timestamp + "," +
                 roomStr + "," +
-                userStr + " " + name + "," +
+                userStr + "," + name + "," +
                 actionStr + "," +
                 roomStr + "," +
                 lastOffset;
@@ -136,12 +155,14 @@ public class LogAppendTerminal {
             }
         }
 
-        String lastLogDecrypted = Encryption.DecryptLog(lastLine, cmd.token);
-        if (lastLogDecrypted == null)
-            throw new Exception("Decrypt Failed");
-
-        byte[] rowBytes = Base64.getDecoder().decode(lastLogDecrypted);
-        byte[] lastMac = Arrays.copyOfRange(rowBytes, rowBytes.length - 32, rowBytes.length);
+        byte[] lastMac = null;
+        if (!(lastLine == null)) {
+            DecryptedLog log = Encryption.DecryptLog(lastLine, cmd.token);
+            if (log.plaintext() == null) {
+                throw new Exception("Decrypt Failed");
+            }
+            lastMac = log.mac();
+        }
 
         // encriptar e gerar MAC
         String encryptedRow = Encryption.EncryptLog(plainText, cmd.token, lastMac);
@@ -156,7 +177,11 @@ public class LogAppendTerminal {
         }
 
         // update db
-        DBEntry newEntry = new DBEntry(cmd.user, cmd.roomId, currOffset, cmd.timestamp);
+        int room = -1;
+        if (cmd.roomId != null) {
+            room = cmd.roomId;
+        }
+        DBEntry newEntry = new DBEntry(cmd.user, room, currOffset, cmd.timestamp);
         try {
             Database.UpdateEntry(cmd.token, newEntry);
         } catch (IllegalArgumentException e) {
@@ -188,9 +213,8 @@ public class LogAppendTerminal {
                     File db = new File(DB_FILENAME);
                     if (!db.exists()) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
-                    } else {
-                        validateAndAppendCached(parsedArgs);
                     }
+                    validateAndAppendCached(parsedArgs);
                 } catch (Exception e) {
                     Utils.invalidBatchLine(); // No batch mode, o erro numa linha não para as restantes
                 }
@@ -203,8 +227,9 @@ public class LogAppendTerminal {
     // Método para ler e reconstruir o histórico a partir do ficheiro
     public static void createDatabase(String logPath, String token) throws Exception {
         File logFile = new File(logPath);
-        if (!logFile.exists())
+        if (!logFile.exists()) {
             return;
+        }
 
         // 1. Verificar a integridade (MUITO IMPORTANTE)
         if (!Encryption.CheckIntegrity(logPath, token)) {
@@ -220,7 +245,8 @@ public class LogAppendTerminal {
                 if (lineBase64.isEmpty())
                     continue;
 
-                String plainText = Encryption.DecryptLog(lineBase64, token);
+                DecryptedLog log = Encryption.DecryptLog(lineBase64, token);
+                String plainText = log.plaintext();
                 if (plainText == null)
                     throw new Exception("Decrypt Failed");
 
@@ -263,7 +289,7 @@ public class LogAppendTerminal {
     private static void upsertEntry(String token, DBEntry entry) throws IOException {
         try {
             Database.UpdateEntry(token, entry);
-        } catch(IllegalArgumentException e) {
+        } catch (IllegalArgumentException e) {
             Database.CreateEntry(token, entry);
         }
     }

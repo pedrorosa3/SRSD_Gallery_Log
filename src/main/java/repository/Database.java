@@ -37,6 +37,7 @@ public class Database {
 
         String newRow = entry.user().getUserName() + "," +
                 entry.user().getUserType() + "," +
+                entry.lastAction() + "," +
                 String.valueOf(entry.room()) + "," +
                 String.valueOf(entry.curr_byte()) + "," +
                 String.valueOf(entry.timestamp());
@@ -62,6 +63,7 @@ public class Database {
             if (row[0].equals(entry.user().getUserName())) {
                 String updatedRow = entry.user().getUserName() + "," +
                         entry.user().getUserType() + "," +
+                        entry.lastAction() + "," +
                         String.valueOf(entry.room()) + "," +
                         String.valueOf(entry.curr_byte()) + "," +
                         String.valueOf(entry.timestamp());
@@ -115,9 +117,9 @@ public class Database {
             String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(user)) {
-                return new DBEntry(new User(row[0], row[1]), Integer.parseInt(row[2]),
-                        Long.parseLong(row[3]),
-                        Integer.parseInt(row[4]));
+                return new DBEntry(new User(row[0], row[1]), row[2], Integer.parseInt(row[3]),
+                        Long.parseLong(row[4]),
+                        Integer.parseInt(row[5]));
             }
         }
 
@@ -137,7 +139,7 @@ public class Database {
         for (int i = 0; i < lines.size(); i++) {
             String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
-            int timestamp = Integer.parseInt(row[4]);
+            int timestamp = Integer.parseInt(row[5]);
             if (timestamp > lastTimestamp) {
                 lastTimestamp = timestamp;
             }
@@ -159,7 +161,7 @@ public class Database {
             String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
 
             if (row[0].equals(user)) {
-                return Long.parseLong(row[3]);
+                return Long.parseLong(row[4]);
             }
         }
 

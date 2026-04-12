@@ -51,9 +51,11 @@ public class LogReadFile {
             HashSet<String> employees = new HashSet<>();
             HashSet<String> guests = new HashSet<>();
             HashMap<Integer, TreeSet<String>> roomOccupants = new HashMap<>();
-            String line;
+            DecryptedLog log;
 
-            while ((line = Encryption.DecryptLog(br.readLine(), token)) != null) {
+            while ((log = Encryption.DecryptLog(br.readLine(), token)) != null) {
+                String line = log.plaintext();
+                System.out.println(line);
                 if (line.trim().isEmpty()) continue;
                 LogEntry entry = LogEntry.parse(line);
 
@@ -111,10 +113,10 @@ public class LogReadFile {
                 raf.seek(currentOffset);
                 String line = raf.readLine();
                 if (line == null || line.trim().isEmpty()) continue;
-                String decryptedLine = Encryption.DecryptLog(line, token);
-                if (decryptedLine == null) continue; // skip invalid lines
+                DecryptedLog log = Encryption.DecryptLog(line, token);
+                if (log == null) continue; // skip invalid lines
 
-                LogEntry entry = LogEntry.parse(decryptedLine);
+                LogEntry entry = LogEntry.parse(log.plaintext());
 
                 if (!entry.getRoom().equals("GALLERY") && entry.getAction().equals("IN")) {
                     rooms.add(entry.getRoom());
@@ -151,9 +153,9 @@ public class LogReadFile {
                     String line = sb.reverse().toString();
                     sb.setLength(0);
                     if (!line.trim().isEmpty()) {
-                        String decryptedLine = Encryption.DecryptLog(line, token);
-                        if (decryptedLine == null) continue; // skip invalid lines
-                        LogEntry entry = LogEntry.parse(decryptedLine);
+                        DecryptedLog log = Encryption.DecryptLog(line, token);
+                        if (log == null) continue; // skip invalid lines
+                        LogEntry entry = LogEntry.parse(log.plaintext());
                         for (User user : users) {
                             if (!found.contains(user)
                                     && entry.getUserName().equals(user.getUserName())
@@ -199,10 +201,10 @@ public class LogReadFile {
                 raf.seek(currentOffset.offset());
                 String line = raf.readLine();
                 if (line == null || line.trim().isEmpty()) continue;
-                String decryptedLine = Encryption.DecryptLog(line, token);
-                if (decryptedLine == null) continue; // skip invalid lines
+                DecryptedLog log = Encryption.DecryptLog(line, token);
+                if (log == null) continue; // skip invalid lines
 
-                LogEntry entry = LogEntry.parse(decryptedLine);
+                LogEntry entry = LogEntry.parse(log.plaintext());
                 User user = currentOffset.user();
 
                 // if OUT: the user visited the room;

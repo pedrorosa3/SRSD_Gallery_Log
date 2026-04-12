@@ -36,7 +36,10 @@ public class LogAppendTerminal {
             if (!db.exists()) {
                 createDatabase(parsedArgs.logFile, parsedArgs.token);
             }
-            validateAndAppendCached(parsedArgs);
+            boolean validated = validateAndAppend(parsedArgs);
+            if (!validated) {
+                Utils.exitInvalid();
+            }
         } catch (Exception e) {
             Utils.exitInvalid();
         }
@@ -75,7 +78,7 @@ public class LogAppendTerminal {
         }
     }
 
-    private static void validateAndAppendCached(LogAppendArgs cmd) throws Exception {
+    private static boolean validateAndAppend(LogAppendArgs cmd) throws Exception {
         Path path = Paths.get(cmd.logFile);
         if (!Files.exists(path)) {
             Files.createFile(path);
@@ -84,7 +87,7 @@ public class LogAppendTerminal {
         // validar a cronologia do tempo
         int lastTimestamp = Database.GetLastTimestamp(cmd.token);
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
-            Utils.exitInvalid();
+            return false;
         }
 
         // lógica de validação da galeria
@@ -93,26 +96,28 @@ public class LogAppendTerminal {
         DBEntry userState = Database.GetEntry(cmd.token, name);
         boolean isCurrentlyInGallery = false;
         Integer currentRoom = null;
+        String lastAction = null;
 
         if (userState != null) {
             isCurrentlyInGallery = true;
             currentRoom = userState.room();
+            lastAction = userState.lastAction();
         }
 
-        boolean isCurrentlyInRoom = (currentRoom != null && currentRoom != -1);
+        boolean isCurrentlyInRoom = (currentRoom != null && currentRoom != -1 && lastAction.equals("IN"));
 
         if (cmd.isArrival) {
             if (cmd.roomId == null) {
                 // Chegada à galeria (-A sem -R)
                 // Não pode estar já na galeria nem já dentro de uma sala
                 if (isCurrentlyInGallery || isCurrentlyInRoom) {
-                    Utils.exitInvalid();
+                    return false;
                 }
             } else {
                 // Chegada a uma sala (-A com -R)
                 // TEM de estar na galeria, e NÃO pode estar noutra sala [cite: 701, 702]
                 if (!isCurrentlyInGallery || isCurrentlyInRoom) {
-                    Utils.exitInvalid();
+                    return false;
                 }
             }
         } else {
@@ -120,13 +125,13 @@ public class LogAppendTerminal {
                 // Saída da galeria (-L sem -R)
                 // TEM de estar na galeria, e NÃO pode estar dentro de nenhuma sala [cite: 707]
                 if (!isCurrentlyInGallery || isCurrentlyInRoom) {
-                    Utils.exitInvalid();
+                    return false;
                 }
             } else {
                 // Saída de uma sala (-L com -R)
                 // TEM de estar exatamente nesta sala para poder sair [cite: 708]
                 if (!isCurrentlyInRoom || !currentRoom.equals(cmd.roomId)) {
-                    Utils.exitInvalid();
+                    return false;
                 }
             }
         }
@@ -143,7 +148,6 @@ public class LogAppendTerminal {
                 roomStr + "," +
                 userStr + "," + name + "," +
                 actionStr + "," +
-                roomStr + "," +
                 lastOffset;
 
         // obter o último MAC
@@ -173,7 +177,7 @@ public class LogAppendTerminal {
                 PrintWriter out = new PrintWriter(bw)) {
             out.println(encryptedRow);
         } catch (IOException e) {
-            Utils.exitInvalid();
+            return false;
         }
 
         // update db
@@ -181,12 +185,15 @@ public class LogAppendTerminal {
         if (cmd.roomId != null) {
             room = cmd.roomId;
         }
-        DBEntry newEntry = new DBEntry(cmd.user, room, currOffset, cmd.timestamp);
+
+        DBEntry newEntry = new DBEntry(cmd.user, actionStr, room, currOffset, cmd.timestamp);
         try {
             Database.UpdateEntry(cmd.token, newEntry);
         } catch (IllegalArgumentException e) {
             Database.CreateEntry(cmd.token, newEntry);
         }
+
+        return true;
     }
 
     private static void processBatch(String batchFilePath) {
@@ -214,9 +221,14 @@ public class LogAppendTerminal {
                     if (!db.exists()) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
                     }
-                    validateAndAppendCached(parsedArgs);
+                    boolean validated = validateAndAppend(parsedArgs);
+                    if (!validated) {
+                        Utils.invalidBatchLine();
+                        continue;
+                    }
                 } catch (Exception e) {
-                    Utils.invalidBatchLine(); // No batch mode, o erro numa linha não para as restantes
+                    Utils.invalidBatchLine();
+                    continue;
                 }
             }
         } catch (IOException e) {
@@ -271,15 +283,15 @@ public class LogAppendTerminal {
 
                 if (isArrival) {
                     if (roomId == null)
-                        upsertEntry(token, new DBEntry(user, -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "IN", -1, byteOffset, ts));
                     else {
-                        upsertEntry(token, new DBEntry(user, roomId, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "IN", roomId, byteOffset, ts));
                     }
                 } else { // is Departure
                     if (roomId == null)
                         Database.DeleteEntry(token, user.getUserName());
                     else {
-                        upsertEntry(token, new DBEntry(user, -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, ts));
                     }
                 }
             }

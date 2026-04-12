@@ -55,7 +55,6 @@ public class LogReadFile {
 
             while ((log = Encryption.DecryptLog(br.readLine(), token)) != null) {
                 String line = log.plaintext();
-                System.out.println(line);
                 if (line.trim().isEmpty()) continue;
                 LogEntry entry = LogEntry.parse(line);
 

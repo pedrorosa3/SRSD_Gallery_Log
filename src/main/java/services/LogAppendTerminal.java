@@ -259,26 +259,27 @@ public class LogAppendTerminal {
 
                 DecryptedLog log = Encryption.DecryptLog(lineBase64, token);
                 String plainText = log.plaintext();
-                if (plainText == null)
+                if (plainText == null) {
                     throw new Exception("Decrypt Failed");
+                }
 
                 // Atualizar o estado em memória baseado na linha lida
                 // formato: timestamp,room,type,name,action,byteoffset
-                String[] parts = plainText.split(",", -1);
+                String[] parts = plainText.split(",");
                 int ts = Integer.parseInt(parts[0]);
-                String room = parts[1];
+                String roomStr = parts[1];
                 Integer roomId = null;
-                if (!room.equals("GALLERY"))
-                    roomId = Integer.parseInt(room);
+                if (!roomStr.equals("GALLERY"))
+                    roomId = Integer.parseInt(roomStr);
                 User user = null;
-                if (parts[2].startsWith("-E ")) {
-                    user = new User(parts[2].substring(3), User.UserType.EMPLOYEE);
-                } else if (parts[2].startsWith("-G ")) {
-                    user = new User(parts[2].substring(3), User.UserType.GUEST);
+                if (parts[2].equals("-E")) {
+                    user = new User(parts[3], User.UserType.EMPLOYEE);
+                } else if (parts[2].equals("-G")) {
+                    user = new User(parts[3], User.UserType.GUEST);
                 } else {
                     Utils.exitInvalid();
                 }
-                boolean isArrival = parts[4].equals("A");
+                boolean isArrival = parts[4].equals("IN");
                 long byteOffset = Long.parseLong(parts[5]);
 
                 if (isArrival) {
@@ -288,8 +289,9 @@ public class LogAppendTerminal {
                         upsertEntry(token, new DBEntry(user, "IN", roomId, byteOffset, ts));
                     }
                 } else { // is Departure
-                    if (roomId == null)
+                    if (roomId == null) {
                         Database.DeleteEntry(token, user.getUserName());
+                    }
                     else {
                         upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, ts));
                     }

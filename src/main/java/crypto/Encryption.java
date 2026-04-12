@@ -13,6 +13,8 @@ import javax.crypto.Mac;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import models.DecryptedLog;
+
 public class Encryption {
 
     public static String EncryptLog(String valuePlain, String token, byte[] prevMac) {
@@ -109,13 +111,12 @@ public class Encryption {
         return true;
     }
     
-    public static String DecryptLog(String rowBase64, String token) {
+    public static DecryptedLog DecryptLog(String rowBase64, String token) {
         try {
             // Derivar as chaves exatamente como no EncryptLog
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            byte[] ke = new byte[16];
-            System.arraycopy(hash, 0, ke, 0, 16);
+            byte[] ke = Arrays.copyOfRange(hash, 0, 16);
 
             // Descodificar de Base64
             byte[] rowBytes = Base64.getDecoder().decode(rowBase64);
@@ -123,6 +124,7 @@ public class Encryption {
             // Extrair o MAC, o IV e o Ciphertext
             byte[] iv = Arrays.copyOfRange(rowBytes, 0, 16);
             byte[] ciphertext = Arrays.copyOfRange(rowBytes, 16, rowBytes.length - 32);
+            byte[] mac = Arrays.copyOfRange(rowBytes, rowBytes.length - 32, rowBytes.length);
 
             // Desencriptar o Ciphertext
             SecretKeySpec keySpec = new SecretKeySpec(ke, "AES");
@@ -131,7 +133,7 @@ public class Encryption {
             cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
             
             byte[] plainTextBytes = cipher.doFinal(ciphertext);
-            return new String(plainTextBytes, StandardCharsets.UTF_8);
+            return new DecryptedLog(iv, ciphertext, mac, new String(plainTextBytes, StandardCharsets.UTF_8));
 
         } catch (Exception e) {
             // Se falhar a desencriptação ou o Base64 estiver corrompido

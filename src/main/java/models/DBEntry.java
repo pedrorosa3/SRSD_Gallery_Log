@@ -1,3 +1,3 @@
 package models;
 
-public record DBEntry(User user, int room, long curr_byte, int timestamp) {}
+public record DBEntry(User user, String lastAction, int room, long curr_byte, int timestamp) {}

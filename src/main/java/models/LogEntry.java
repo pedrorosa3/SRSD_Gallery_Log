@@ -8,16 +8,16 @@ package models;
         long prevOffset;
 
         public static LogEntry parse(String line) {
-            String[] parts = line.split(", ");
+            String[] parts = line.split(",");
             if (parts.length < 6) {
                 System.out.println("invalid parsing");
                 System.exit(111);
             }
             LogEntry entry = new LogEntry();
-            entry.room = parts[1].trim();
-            entry.userType = parts[2].trim();
-            entry.userName = parts[3].trim();
-            entry.action = parts[4].trim();
+            entry.room = parts[1];
+            entry.userType = parts[2];
+            entry.userName = parts[3];
+            entry.action = parts[4];
             try {
                 entry.prevOffset = Long.parseLong(parts[5].trim());
             } catch (NumberFormatException e) {

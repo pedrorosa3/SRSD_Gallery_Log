@@ -1,6 +1,8 @@
 package models;
 
-    public class LogEntry {
+import Utils.Utils;
+
+public class LogEntry {
         String room;
         String userType;
         String userName;
@@ -10,8 +12,7 @@ package models;
         public static LogEntry parse(String line) {
             String[] parts = line.split(",");
             if (parts.length < 6) {
-                System.out.println("invalid parsing");
-                System.exit(111);
+                Utils.exitInvalid();
             }
             LogEntry entry = new LogEntry();
             entry.room = parts[1];
@@ -21,8 +22,7 @@ package models;
             try {
                 entry.prevOffset = Long.parseLong(parts[5].trim());
             } catch (NumberFormatException e) {
-                System.out.println("invalid parsing");
-                System.exit(111);
+                Utils.exitInvalid();
             }
             return entry;
         }

@@ -51,7 +51,7 @@ public class LogReadFile {
             HashSet<String> employees = new HashSet<>();
             HashSet<String> guests = new HashSet<>();
             HashMap<Integer, HashSet<String>> roomOccupants = new HashMap<>();
-            DecryptedLog log;
+            DecryptedData log;
 
             while ((log = Encryption.decryptLog(br.readLine(), token)) != null) {
                 String line = log.plaintext();
@@ -111,7 +111,7 @@ public class LogReadFile {
             while (currentOffset != -1) {
                 String line = readLine(raf, currentOffset);
                 if (line.isEmpty()) continue;
-                DecryptedLog log = Encryption.decryptLog(line, token);
+                DecryptedData log = Encryption.decryptLog(line, token);
                 if (log == null) continue; // skip invalid lines
 
                 LogEntry entry = LogEntry.parse(log.plaintext());
@@ -143,7 +143,7 @@ public class LogReadFile {
             while (pointer >= 0 && offsets.size() < users.size()) {
                 String line = readLine(raf, pointer);
                 if (!line.isEmpty()) {
-                    DecryptedLog log = Encryption.decryptLog(line, token);
+                    DecryptedData log = Encryption.decryptLog(line, token);
                     if (log != null) {
                         LogEntry entry = LogEntry.parse(log.plaintext());
                         for (User user : users) {
@@ -195,7 +195,7 @@ public class LogReadFile {
                 UserOffset currentOffset = orderedOffsets.poll();
                 String line = readLine(raf, currentOffset.offset());
                 if (line.isEmpty()) continue;
-                DecryptedLog log = Encryption.decryptLog(line, token);
+                DecryptedData log = Encryption.decryptLog(line, token);
                 if (log == null) continue; // skip invalid lines
 
                 LogEntry entry = LogEntry.parse(log.plaintext());

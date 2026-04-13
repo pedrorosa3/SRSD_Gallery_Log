@@ -9,7 +9,7 @@ import java.util.*;
 import Utils.*;
 import crypto.Encryption;
 import models.DBEntry;
-import models.DecryptedLog;
+import models.DecryptedData;
 import models.LogEntry;
 import models.User;
 import repository.Database;
@@ -103,7 +103,7 @@ public class LogAppendTerminal {
         }
 
         // decrypt last log
-        DecryptedLog log = null;
+        DecryptedData log = null;
         int lastTimestamp = 0;
 
         if (!(lastLine == null)) {
@@ -301,7 +301,7 @@ public class LogAppendTerminal {
                 if (lineBase64.isEmpty())
                     continue;
 
-                DecryptedLog log = Encryption.decryptLog(lineBase64, token);
+                DecryptedData log = Encryption.decryptLog(lineBase64, token);
                 if (log == null || log.plaintext() == null) {
                     throw new Exception("Decrypt Failed");
                 }

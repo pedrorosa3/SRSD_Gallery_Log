@@ -93,7 +93,29 @@ public class LogAppendTerminal {
         }
 
         // validar a cronologia do tempo
-        int lastTimestamp = Database.GetLastTimestamp(cmd.token);
+
+        String lastLine = null;
+        try (BufferedReader br = Files.newBufferedReader(path)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                lastLine = line;
+            }
+        }
+
+        // decrypt last log
+        DecryptedLog log = null;
+        int lastTimestamp = 0;
+
+        if (!(lastLine == null)) {
+            log = Encryption.DecryptLog(lastLine, cmd.token);
+            if (log == null || log.plaintext() == null) {
+                throw new Exception("Decrypt Failed");
+            }
+            String[] row = log.plaintext().split(",");
+            lastTimestamp = Integer.parseInt(row[0]);
+        }
+
+        // validate timestamp
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
             return false;
         }

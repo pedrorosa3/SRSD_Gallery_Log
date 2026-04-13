@@ -8,6 +8,11 @@ public class Utils {
         System.exit(111);
     }
 
+    public static void exitInvalidIntegration() {
+        System.out.println("integration violation");
+        System.exit(111);
+    }
+
     // Função para imprimir erro no modo batch sem sair do programa
     public static void invalidBatchLine() {
         System.out.println("invalid");

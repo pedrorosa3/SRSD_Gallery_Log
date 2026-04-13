@@ -21,6 +21,7 @@ import crypto.Encryption;
 import models.*;
 
 public class LogReadFile {
+    private static final int LINE_SIZE = 154;
 
     /*
     * Process the log file based on the parsed arguments.
@@ -109,9 +110,8 @@ public class LogReadFile {
             long currentOffset = offsets.get(user);
 
             while (currentOffset != -1) {
-                raf.seek(currentOffset);
-                String line = raf.readLine();
-                if (line == null || line.trim().isEmpty()) continue;
+                String line = readLine(raf, currentOffset);
+                if (line.isEmpty()) continue;
                 DecryptedLog log = Encryption.DecryptLog(line, token);
                 if (log == null) continue; // skip invalid lines
 
@@ -139,36 +139,35 @@ public class LogReadFile {
         Map<User, Long> offsets = new HashMap<>();
 
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
-            long pointer = raf.length() - 1;
-            StringBuilder sb = new StringBuilder();
+            long pointer = raf.length() - LINE_SIZE;
 
             while (pointer >= 0 && offsets.size() < users.size()) {
-                raf.seek(pointer);
-                char c = (char) raf.read();
-                pointer--;
-
-                if (c == '\n') {
-                    String line = sb.reverse().toString();
-                    sb.setLength(0);
-                    if (!line.trim().isEmpty()) {
-                        DecryptedLog log = Encryption.DecryptLog(line, token);
-                        if (log == null) continue; // skip invalid lines
+                String line = readLine(raf, pointer);
+                if (!line.isEmpty()) {
+                    DecryptedLog log = Encryption.DecryptLog(line, token);
+                    if (log != null) {
                         LogEntry entry = LogEntry.parse(log.plaintext());
                         for (User user : users) {
                             if (!offsets.containsKey(user)
                                     && entry.getUserName().equals(user.getUserName())
                                     && entry.getUserType().equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
-                                offsets.put(user, pointer + 2);
+                                offsets.put(user, pointer);
                                 break;
                             }
                         }
                     }
-                } else if (c != '\r') {
-                    sb.append(c);
                 }
+                pointer -= LINE_SIZE;
             }
         }
         return offsets;
+    }
+
+    private static String readLine(RandomAccessFile raf, long offset) throws IOException {
+        raf.seek(offset);
+        byte[] buffer = new byte[LINE_SIZE];
+        int bytesRead = raf.read(buffer);
+        return new String(buffer, 0, bytesRead).trim();
     }
 
     /*
@@ -195,9 +194,8 @@ public class LogReadFile {
 
             while (!orderedOffsets.isEmpty()) {
                 UserOffset currentOffset = orderedOffsets.poll();
-                raf.seek(currentOffset.offset());
-                String line = raf.readLine();
-                if (line == null || line.trim().isEmpty()) continue;
+                String line = readLine(raf, currentOffset.offset());
+                if (line.isEmpty()) continue;
                 DecryptedLog log = Encryption.DecryptLog(line, token);
                 if (log == null) continue; // skip invalid lines
 

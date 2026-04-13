@@ -50,7 +50,7 @@ public class LogReadFile {
         try (BufferedReader br = new BufferedReader(new FileReader(logFilePath))) {
             HashSet<String> employees = new HashSet<>();
             HashSet<String> guests = new HashSet<>();
-            HashMap<Integer, TreeSet<String>> roomOccupants = new HashMap<>();
+            HashMap<Integer, HashSet<String>> roomOccupants = new HashMap<>();
             DecryptedLog log;
 
             while ((log = Encryption.DecryptLog(br.readLine(), token)) != null) {
@@ -69,7 +69,7 @@ public class LogReadFile {
                 } else {
                     int roomId = Integer.parseInt(entry.getRoom());
                     if (entry.getAction().equals("IN")) {
-                        roomOccupants.computeIfAbsent(roomId, k -> new TreeSet<>()).add(entry.getUserName());
+                        roomOccupants.computeIfAbsent(roomId, k -> new HashSet<>()).add(entry.getUserName());
                     } else {
                         if (roomOccupants.containsKey(roomId)) {
                             roomOccupants.get(roomId).remove(entry.getUserName());
@@ -83,7 +83,7 @@ public class LogReadFile {
             System.out.println(String.join(",", new TreeSet<>(employees)));
             System.out.println(String.join(",", new TreeSet<>(guests)));
             new TreeMap<>(roomOccupants).forEach((roomId, occupants) ->
-                System.out.println(roomId + ": " + String.join(",", occupants)));
+                System.out.println(roomId + ": " + String.join(",", new TreeSet<>(occupants))));
         }
     }
 

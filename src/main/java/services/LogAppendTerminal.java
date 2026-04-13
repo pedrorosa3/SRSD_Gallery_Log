@@ -70,7 +70,7 @@ public class LogAppendTerminal {
         }
 
         String name = cmd.user.getUserName();
-        if (!name.matches("[a-zA-Z]+")) {
+        if (!name.matches("[a-zA-Z]+") || name.length() > 27) {
             Utils.exitInvalid();
         }
         if (!cmd.token.matches("[a-zA-Z0-9]+")) {
@@ -144,9 +144,11 @@ public class LogAppendTerminal {
         long currOffset = Files.size(path);
         long lastOffset = Database.GetLastUserOffset(cmd.token, name);
 
+        String paddedName = String.format("%-27s", name);
+        String paddedRoom = String.format("%-10s", roomStr);
         String plainText = cmd.timestamp + "," +
-                roomStr + "," +
-                userStr + "," + name + "," +
+                paddedRoom + "," +
+                userStr + "," + paddedName + "," +
                 actionStr + "," +
                 lastOffset;
 
@@ -162,7 +164,7 @@ public class LogAppendTerminal {
         byte[] lastMac = null;
         if (!(lastLine == null)) {
             DecryptedLog log = Encryption.DecryptLog(lastLine, cmd.token);
-            if (log.plaintext() == null) {
+            if (log == null || log.plaintext() == null) {
                 throw new Exception("Decrypt Failed");
             }
             lastMac = log.mac();

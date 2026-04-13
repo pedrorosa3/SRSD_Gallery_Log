@@ -43,11 +43,11 @@ public class LogReadArgs extends ParsedArgs {
                     if (isIntersect) Utils.exitInvalid();
                     isIntersect = true; break;
                 case "-E":
-                    if (!args[++i].matches("[a-zA-Z]+")) Utils.exitInvalid();
+                    if (!args[++i].matches("[a-zA-Z]+") || args[i].length() > 27) Utils.exitInvalid();
                     users.add(new User(args[i], User.UserType.EMPLOYEE));
                     break;
                 case "-G":
-                    if (!args[++i].matches("[a-zA-Z]+")) Utils.exitInvalid();
+                    if (!args[++i].matches("[a-zA-Z]+") || args[i].length() > 27) Utils.exitInvalid();
                     users.add(new User(args[i], User.UserType.GUEST));
                     break;
                 default:

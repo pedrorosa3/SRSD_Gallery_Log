@@ -15,10 +15,10 @@ public class LogEntry {
                 Utils.exitInvalid();
             }
             LogEntry entry = new LogEntry();
-            entry.room = parts[1];
-            entry.userType = parts[2];
-            entry.userName = parts[3];
-            entry.action = parts[4];
+            entry.room = parts[1].trim();
+            entry.userType = parts[2].trim();
+            entry.userName = parts[3].trim();
+            entry.action = parts[4].trim();
             try {
                 entry.prevOffset = Long.parseLong(parts[5].trim());
             } catch (NumberFormatException e) {

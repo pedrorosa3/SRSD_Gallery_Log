@@ -1,0 +1,10 @@
+-K secret -T 1 -A -E Charlie log_lote
+-K secret -T 2 -A -G Dave log_lote
+-K secret -T 3 -A -R 5 -E Charlie log_lote
+-K secret -T 4 -A -R 10 -G Dave log_lote
+-K secret -T 5 -L -R 5 -E Charlie log_lote
+-K secret -T 6 -A -R 10 -E Charlie log_lote
+-K secret -T 7 -L -R 10 -G Dave log_lote
+-K secret -T 8 -A -R 20 -G Dave log_lote
+-K secret -T 9 -L -R 10 -E Charlie log_lote
+-K secret -T 10 -L -E Charlie log_lote

@@ -107,7 +107,7 @@ public class LogAppendTerminal {
         int lastTimestamp = 0;
 
         if (!(lastLine == null)) {
-            log = Encryption.DecryptLog(lastLine, cmd.token);
+            log = Encryption.decryptLog(lastLine, cmd.token);
             if (log == null || log.plaintext() == null) {
                 throw new Exception("Decrypt Failed");
             }
@@ -189,8 +189,8 @@ public class LogAppendTerminal {
                 raf.seek(logSize - Utils.LINE_SIZE);
                 byte[] buffer = new byte[Utils.LINE_SIZE];
                 int bytesRead = raf.read(buffer);
-                String lastLine = new String(buffer, 0, bytesRead).trim();
-                DecryptedLog log = Encryption.decryptLog(lastLine, cmd.token);
+                lastLine = new String(buffer, 0, bytesRead).trim();
+                log = Encryption.decryptLog(lastLine, cmd.token);
                 if (log == null || log.plaintext() == null) {
                     throw new Exception("Decrypt Failed");
                 }

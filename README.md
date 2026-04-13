@@ -24,25 +24,32 @@ mvn clean package
 
 To compile:
 ```bash
-dir /s /B *.java > sources.txt
-javac @sources.txt
+mvn clean package
 ```
 To test:
-In src/main/java:
+
 ```bash
-java services.LogAppendTerminal -T 1 -K secret -A -E Fred log1
-java services.LogAppendTerminal -T 2 -K secret -A -G Jill log1
-java services.LogAppendTerminal -T 3 -K secret -A -E Fred -R 1 log1
-java services.LogAppendTerminal -T 4 -K secret -A -G Jill -R 1 log1
+.\logappend.ps1 -T 1 -K secret -A -E Fred log1
+.\logappend.ps1 -T 2 -K secret -A -G Jill log1
+.\logappend.ps1 -T 3 -K secret -A -E Fred -R 1 log1
+.\logappend.ps1 -T 4 -K secret -A -E Jill -R 1 log1
 ```
 To force error:
 ```bash
-java services.LogAppendTerminal -T 3 -K secret -L -E Fred -R 1 log1
-java services.LogAppendTerminal -T 5 -K secret -L -G Jill -R 2 log1
-java services.LogAppendTerminal -T 6 -K secret -L -E Fred log1
+# 4. Violação de Cronologia: Tentar usar um tempo no passado (Tempo 2 já passou)
+.\logappend.ps1 -T 2 -K secret -A -G John log1
+
+# 5. Violação de Estado: Fred tenta sair da Sala 5, mas ele está na Sala 1!
+.\logappend.ps1 -T 4 -K secret -L -E Fred -R 5 log1
+
+# 6. Violação de Estado: Jill tenta entrar numa sala sem dizer qual é (falta o -R)
+.\logappend.ps1 -T 5 -K secret -A -G Jill log1
+
+# 7. Violação de Integridade: Tentar usar uma password errada no log1
+.\logappend.ps1 -T 6 -K passwordFalsa -L -E Fred -R 1 log1
 ```
 
 Batch Mode:
 ```bash
-java services.LogAppendTerminal -B batch.txt
+.\logappend.ps1 -B src/main/java/batch.txt
 ```

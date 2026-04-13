@@ -24,7 +24,7 @@ public class LogReadTerminal {
         HashSet<User> userSet = new HashSet<User>(parsedArgs.users);
         if (userSet.size() != parsedArgs.users.size()) { Utils.exitInvalid(); }
         if (parsedArgs.isState && !parsedArgs.users.isEmpty()) { Utils.exitInvalid(); }
-        if (parsedArgs.isRooms && parsedArgs.users.isEmpty()) { Utils.exitInvalid(); }
+        if (parsedArgs.isRooms && parsedArgs.users.size() != 1) { Utils.exitInvalid(); }
         if (parsedArgs.isIntersect && parsedArgs.users.size() < 2) { Utils.exitInvalid(); }
     }
 }

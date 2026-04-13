@@ -137,13 +137,12 @@ public class LogReadFile {
      */
     private static Map<User, Long> findLastOffsets(String filePath, List<User> users, String token) throws IOException {
         Map<User, Long> offsets = new HashMap<>();
-        Set<User> found = new HashSet<>();
 
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
             long pointer = raf.length() - 1;
             StringBuilder sb = new StringBuilder();
 
-            while (pointer >= 0 && found.size() < users.size()) {
+            while (pointer >= 0 && offsets.size() < users.size()) {
                 raf.seek(pointer);
                 char c = (char) raf.read();
                 pointer--;
@@ -156,12 +155,11 @@ public class LogReadFile {
                         if (log == null) continue; // skip invalid lines
                         LogEntry entry = LogEntry.parse(log.plaintext());
                         for (User user : users) {
-                            if (!found.contains(user)
+                            if (!offsets.containsKey(user)
                                     && entry.getUserName().equals(user.getUserName())
                                     && entry.getUserType().equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
                                 offsets.put(user, pointer + 2);
-                                found.add(user);
-                                continue;
+                                break;
                             }
                         }
                     }

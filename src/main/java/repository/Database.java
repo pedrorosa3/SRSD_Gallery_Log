@@ -26,9 +26,9 @@ public class Database {
         }
         try (Scanner sc = new Scanner(new File(DB_FILENAME))) {
             while (sc.hasNextLine()) {
-                DecryptedLog log = Encryption.decryptLog(sc.nextLine(), token);
-                if (log == null) throw new IOException("Decrypt Failed");
-                String[] fields = log.plaintext().split(",");
+                DecryptedData db_entry = Encryption.decryptDBRow(sc.nextLine(), token);
+                if (db_entry == null) throw new IOException("Decrypt Failed");
+                String[] fields = db_entry.plaintext().split(",");
                 if (fields[0].equals(entry.user().getUserName())) {
                     throw new IllegalArgumentException("user " + entry.user().getUserName() + " already exists");
                 }
@@ -42,7 +42,7 @@ public class Database {
                 String.valueOf(entry.curr_byte()) + "," +
                 String.valueOf(entry.timestamp());
 
-        Files.writeString(Paths.get(DB_FILENAME), Encryption.encryptLog(newRow, token, null, null) + System.lineSeparator(),
+        Files.writeString(Paths.get(DB_FILENAME), Encryption.encryptDBRow(newRow, token) + System.lineSeparator(),
                 StandardOpenOption.APPEND);
     }
 
@@ -59,9 +59,9 @@ public class Database {
         boolean found = false;
 
         for (int i = 0; i < lines.size(); i++) {
-            DecryptedLog log = Encryption.decryptLog(lines.get(i), token);
-            if (log == null) throw new IOException("Decrypt Failed");
-            String[] row = log.plaintext().split(",");
+            DecryptedData db_entry = Encryption.decryptDBRow(lines.get(i), token);
+            if (db_entry == null) throw new IOException("Decrypt Failed");
+            String[] row = db_entry.plaintext().split(",");
 
             if (row[0].equals(entry.user().getUserName())) {
                 String updatedRow = entry.user().getUserName() + "," +
@@ -71,7 +71,7 @@ public class Database {
                         String.valueOf(entry.curr_byte()) + "," +
                         String.valueOf(entry.timestamp());
 
-                lines.set(i, Encryption.encryptLog(updatedRow, token, null, null));
+                lines.set(i, Encryption.encryptDBRow(updatedRow, token));
                 found = true;
                 break;
             }
@@ -93,9 +93,9 @@ public class Database {
         boolean found = false;
 
         for (int i = 0; i < lines.size(); i++) {
-            DecryptedLog log = Encryption.decryptLog(lines.get(i), token);
-            if (log == null) throw new IOException("Decrypt Failed");
-            String[] row = log.plaintext().split(",");
+            DecryptedData entry = Encryption.decryptDBRow(lines.get(i), token);
+            if (entry == null) throw new IOException("Decrypt Failed");
+            String[] row = entry.plaintext().split(",");
 
             if (row[0].equals(user)) {
                 lines.remove(i);
@@ -123,9 +123,9 @@ public class Database {
         List<String> lines = Files.readAllLines(path);
 
         for (int i = 0; i < lines.size(); i++) {
-            DecryptedLog log = Encryption.decryptLog(lines.get(i), token);
-            if (log == null) throw new IOException("Decrypt Failed");
-            String[] row = log.plaintext().split(",");
+            DecryptedData entry = Encryption.decryptDBRow(lines.get(i), token);
+            if (entry == null) throw new IOException("Decrypt Failed");
+            String[] row = entry.plaintext().split(",");
 
             if (row[0].equals(user)) {
                 return new DBEntry(new User(row[0], row[1]), row[2], Integer.parseInt(row[3]),
@@ -148,9 +148,9 @@ public class Database {
         int lastTimestamp = -1;
 
         for (int i = 0; i < lines.size(); i++) {
-            DecryptedLog log = Encryption.decryptLog(lines.get(i), token);
-            if (log == null) throw new IOException("Decrypt Failed");
-            String[] row = log.plaintext().split(",");
+            DecryptedData entry = Encryption.decryptDBRow(lines.get(i), token);
+            if (entry == null) throw new IOException("Decrypt Failed");
+            String[] row = entry.plaintext().split(",");
 
             int timestamp = Integer.parseInt(row[5]);
             if (timestamp > lastTimestamp) {
@@ -171,9 +171,9 @@ public class Database {
         List<String> lines = Files.readAllLines(path);
 
         for (int i = 0; i < lines.size(); i++) {
-            DecryptedLog log = Encryption.decryptLog(lines.get(i), token);
-            if (log == null) throw new IOException("Decrypt Failed");
-            String[] row = log.plaintext().split(",");
+            DecryptedData entry = Encryption.decryptDBRow(lines.get(i), token);
+            if (entry == null) throw new IOException("Decrypt Failed");
+            String[] row = entry.plaintext().split(",");
 
             if (row[0].equals(user)) {
                 return Long.parseLong(row[4]);

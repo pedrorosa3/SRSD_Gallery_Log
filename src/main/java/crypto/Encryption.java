@@ -17,7 +17,7 @@ import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
 import Utils.Utils;
-import models.DecryptedLog;
+import models.DecryptedData;
 
 public class Encryption {
 
@@ -63,14 +63,14 @@ public class Encryption {
             byte[] macValue = mac.doFinal(macInput);
 
             byte[] dbMac;
+            mac.init(macKey);
             if (dbContent != null) {
-                mac.init(macKey);
                 byte[] dbMacInput = new byte[dbContent.length + macValue.length];
                 System.arraycopy(dbContent, 0, dbMacInput, 0, dbContent.length);
                 System.arraycopy(macValue, 0, dbMacInput, dbContent.length, macValue.length);
                 dbMac = mac.doFinal(dbMacInput);
             } else {
-                dbMac = new byte[32];
+                dbMac = mac.doFinal(new byte[0]);
             }
 
             // res = c || macValue || dbMac
@@ -82,6 +82,39 @@ public class Encryption {
             System.arraycopy(dbMac, 0, res, c.length + macValue.length, dbMac.length);
 
             return Base64.getEncoder().encodeToString(res);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to encrypt value", e);
+        }
+    }
+
+    public static String encryptDBRow(String valuePlain, String token) {
+        try {
+            // Gerar IV aleatório (16 bytes para AES/CBC)
+            byte[] iv = new byte[16];
+            SecureRandom random = new SecureRandom();
+            random.nextBytes(iv);
+
+            // Derivar chaves de encriptacao e mac do token
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            byte[] ke = new byte[16];
+
+            System.arraycopy(hash, 0, ke, 0, 16);
+
+            // c' ← Enc_ke(m)
+            SecretKeySpec keySpec = new SecretKeySpec(ke, "AES");
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.ENCRYPT_MODE, keySpec, ivSpec);
+            byte[] ciphertext = cipher.doFinal(valuePlain.getBytes(StandardCharsets.UTF_8));
+
+            // Combinar IV + ciphertext = c
+            byte[] c = new byte[iv.length + ciphertext.length];
+
+            System.arraycopy(iv, 0, c, 0, iv.length);
+            System.arraycopy(ciphertext, 0, c, iv.length, ciphertext.length);
+
+            return Base64.getEncoder().encodeToString(c);
         } catch (Exception e) {
             throw new RuntimeException("Failed to encrypt value", e);
         }
@@ -134,7 +167,7 @@ public class Encryption {
             byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
             byte[] km = new byte[16];
             System.arraycopy(hash, 16, km, 0, 16);
-            
+
             try (RandomAccessFile raf = new RandomAccessFile(logPath, "r")) {
                 long lastLineOffset = raf.length() - Utils.LINE_SIZE;
                 if (lastLineOffset < 0) {
@@ -148,7 +181,8 @@ public class Encryption {
                 byte[] row = Base64.getDecoder().decode(lastLine);
                 byte[] storedDbMac = Arrays.copyOfRange(row, row.length - 32, row.length);
                 byte[] lastLogMac = Arrays.copyOfRange(row, row.length - 64, row.length - 32);
-                byte[] dbContent = Files.readAllBytes(Paths.get(dbPath)); // TODO mudar par ser apenas batches e não ficheiro inteiro
+                byte[] dbContent = Files.readAllBytes(Paths.get(dbPath)); // TODO mudar par ser apenas batches e não
+                                                                          // ficheiro inteiro
 
                 Mac mac = Mac.getInstance("HmacSHA256");
                 SecretKeySpec macKey = new SecretKeySpec(km, "HmacSHA256");
@@ -157,15 +191,14 @@ public class Encryption {
                 System.arraycopy(dbContent, 0, dbMacInput, 0, dbContent.length);
                 System.arraycopy(lastLogMac, 0, dbMacInput, dbContent.length, lastLogMac.length);
                 byte[] expectedDbMac = mac.doFinal(dbMacInput);
-                System.out.println("result of db mac comparison: " + MessageDigest.isEqual(storedDbMac, expectedDbMac));
                 return MessageDigest.isEqual(storedDbMac, expectedDbMac);
             }
         } catch (Exception e) {
             return false;
         }
     }
-    
-    public static DecryptedLog decryptLog(String rowBase64, String token) {
+
+    public static DecryptedData decryptLog(String rowBase64, String token) {
         try {
             // Derivar as chaves exatamente como no EncryptLog
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -174,7 +207,7 @@ public class Encryption {
 
             // Descodificar de Base64
             byte[] rowBytes = Base64.getDecoder().decode(rowBase64);
-            
+
             // Extrair o MAC, o IV e o Ciphertext
             byte[] iv = Arrays.copyOfRange(rowBytes, 0, 16);
             byte[] ciphertext = Arrays.copyOfRange(rowBytes, 16, rowBytes.length - 64);
@@ -186,13 +219,42 @@ public class Encryption {
             IvParameterSpec ivSpec = new IvParameterSpec(iv);
             Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
             cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
-            
+
             byte[] plainTextBytes = cipher.doFinal(ciphertext);
-            return new DecryptedLog(iv, ciphertext, logMac, dbMac, new String(plainTextBytes, StandardCharsets.UTF_8));
+            return new DecryptedData(iv, ciphertext, logMac, dbMac, new String(plainTextBytes, StandardCharsets.UTF_8));
 
         } catch (Exception e) {
             // Se falhar a desencriptação ou o Base64 estiver corrompido
-            return null; 
+            return null;
+        }
+    }
+
+    public static DecryptedData decryptDBRow(String rowBase64, String token) {
+        try {
+            // Derivar as chaves exatamente como no EncryptLog
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
+            byte[] ke = Arrays.copyOfRange(hash, 0, 16);
+
+            // Descodificar de Base64
+            byte[] rowBytes = Base64.getDecoder().decode(rowBase64);
+
+            // Extrair o MAC, o IV e o Ciphertext
+            byte[] iv = Arrays.copyOfRange(rowBytes, 0, 16);
+            byte[] ciphertext = Arrays.copyOfRange(rowBytes, 16, rowBytes.length);
+
+            // Desencriptar o Ciphertext
+            SecretKeySpec keySpec = new SecretKeySpec(ke, "AES");
+            IvParameterSpec ivSpec = new IvParameterSpec(iv);
+            Cipher cipher = Cipher.getInstance("AES/CBC/PKCS5Padding");
+            cipher.init(Cipher.DECRYPT_MODE, keySpec, ivSpec);
+
+            byte[] plainTextBytes = cipher.doFinal(ciphertext);
+            return new DecryptedData(iv, ciphertext, null, null, new String(plainTextBytes, StandardCharsets.UTF_8));
+
+        } catch (Exception e) {
+            // Se falhar a desencriptação ou o Base64 estiver corrompido
+            return null;
         }
     }
 

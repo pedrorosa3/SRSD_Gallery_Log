@@ -126,28 +126,6 @@ public class Database {
         return null;
     }
 
-    public static int GetLastTimestamp(String token) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
-        if (!Files.exists(path)) {
-            Files.createDirectories(path.getParent());
-            Files.createFile(path);
-            return 0;
-        }
-        List<String> lines = Files.readAllLines(path);
-        int lastTimestamp = 0;
-
-        for (int i = 0; i < lines.size(); i++) {
-            String[] row = Encryption.DecryptLog(lines.get(i), token).plaintext().split(",");
-
-            int timestamp = Integer.parseInt(row[5]);
-            if (timestamp > lastTimestamp) {
-                lastTimestamp = timestamp;
-            }
-        }
-
-        return lastTimestamp;
-    }
-
     public static long GetLastUserOffset(String token, String user) throws IOException {
         Path path = Paths.get(DB_FILENAME);
         if (!Files.exists(path)) {

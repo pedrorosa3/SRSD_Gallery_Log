@@ -285,10 +285,11 @@ public class LogAppendTerminal {
             return;
         }
         File dbFile = new File(DB_FILENAME);
-        if (dbFile.exists()) {
-            dbFile.delete();
+        if (dbFile.getParentFile() != null) {
+            dbFile.getParentFile().mkdirs(); // Cria a pasta "repository" se ela ainda não existir
         }
-        dbFile.createNewFile();
+        dbFile.createNewFile(); // Agora já pode criar o .bin em segurança!
+
 
         // 2. Ler e desencriptar linha a linha
         try (BufferedReader br = Files.newBufferedReader(logFile.toPath())) {

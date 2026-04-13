@@ -37,12 +37,12 @@ Batch mode:
 make run ARGS="-B batch.txt"
 ```
 
-```bash
 
-.\logread.ps1 -K secret -S .\src\main\java\logs\log2.txt
-.\logread.ps1 -K secret -R -E Alice .\src\main\java\logs\log2.txt 
-.\logread.ps1 -K secret -R -G Charlie .\src\main\java\logs\log2.txt
-.\logread.ps1 -K secret -R -E Bob .\src\main\java\logs\log2.txt
-.\logread.ps1 -K secret -R -E Eve .\src\main\java\logs\log2.txt 
-.\logread.ps1 -K secret -R -G Diana .\src\main\java\logs\log2.txt
+# LogRead
+
+```bash
+make run-read ARGS="-K secret -S logteste"
+make run-read ARGS="-K secret -R -E Alice logteste"
+make run-read ARGS="-K secret -R -G Bob logteste"
+make run-read ARGS="-K secret -I -E Alice -G Bob logteste"
 ```

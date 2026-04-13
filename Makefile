@@ -2,7 +2,8 @@ JAVAC = javac
 JAVA = java
 SRC = src/main/java
 OUT = target/classes
-MAIN = services.LogAppendTerminal
+MAIN_APPEND = services.LogAppendTerminal
+MAIN_READ = services.LogReadTerminal
 
 # default target
 all: compile
@@ -12,10 +13,13 @@ compile:
 	mkdir -p $(OUT)
 	$(JAVAC) -d $(OUT) $(shell find $(SRC) -name "*.java")
 
-# run with args (usage: make run ARGS="...")
+# run logappend with args (usage: make run ARGS="...")
 run: compile
-	$(JAVA) -cp $(OUT) $(MAIN) $(ARGS)
+	$(JAVA) -cp $(OUT) $(MAIN_APPEND) $(ARGS)
 
+# run logread with args (usage: make run-read ARGS="...")
+run-read: compile
+	$(JAVA) -cp $(OUT) $(MAIN_READ) $(ARGS)
 # clean build
 clean:
 	rm -rf $(OUT)

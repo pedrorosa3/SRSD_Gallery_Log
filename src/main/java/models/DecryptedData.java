@@ -1,6 +1,6 @@
 package models;
 
-public record DecryptedLog(byte[] iv,
+public record DecryptedData(byte[] iv,
         byte[] ciphertext,
         byte[] logMac,
         byte[] dbMac,

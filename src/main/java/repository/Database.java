@@ -42,7 +42,7 @@ public class Database {
                 String.valueOf(entry.curr_byte()) + "," +
                 String.valueOf(entry.timestamp());
 
-        Files.writeString(Paths.get(DB_FILENAME), Encryption.EncryptLog(newRow, token, null),
+        Files.writeString(Paths.get(DB_FILENAME), Encryption.EncryptLog(newRow, token, null) + System.lineSeparator(),
                 StandardOpenOption.APPEND);
     }
 

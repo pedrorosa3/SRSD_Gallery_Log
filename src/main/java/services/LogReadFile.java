@@ -180,10 +180,10 @@ public class LogReadFile {
         if (offset < 0 || offset >= raf.length()) {
             return null;
         }
-        // 1. Move to offset
+        //  Move to offset
         raf.seek(offset);
 
-        // 2. Move backward to find start of line
+        //  Move backward to find start of line
         long start = offset;
         while (start > 0) {
             raf.seek(start - 1);
@@ -194,7 +194,7 @@ public class LogReadFile {
             start--;
         }
 
-        // 3. Move forward and read full line
+        //  Move forward and read full line
         raf.seek(start);
         String line = raf.readLine();
         if (line == null)

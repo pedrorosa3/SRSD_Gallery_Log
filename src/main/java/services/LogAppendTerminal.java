@@ -21,13 +21,13 @@ public class LogAppendTerminal {
             Utils.exitInvalid();
         }
 
-        // 1. Verificar se é modo Batch (-B)
+        // Verificar se é modo Batch (-B)
         if (args[0].equals("-B") && args.length == 2) {
             processBatch(args[1]);
             System.exit(0); // Batch file existe e foi processado
         }
 
-        // 2. Modo Normal
+        // Modo Normal
         try {
             LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
             validateArgs(parsedArgs);
@@ -53,7 +53,7 @@ public class LogAppendTerminal {
     }
 
     private static void validateArgs(LogAppendArgs cmd) throws Exception {
-        // 1. Validações Sintáticas Iniciais
+        // Validações Sintáticas Iniciais
         if (cmd.logFile == null || cmd.timestamp == null || cmd.token == null) {
             Utils.exitInvalid();
         }
@@ -144,7 +144,7 @@ public class LogAppendTerminal {
                 }
             } else {
                 // Chegada a uma sala (-A com -R)
-                // TEM de estar na galeria, e NÃO pode estar noutra sala [cite: 701, 702]
+                // TEM de estar na galeria, e NÃO pode estar noutra sala
                 if (!isCurrentlyInGallery || isCurrentlyInRoom) {
                     return false;
                 }
@@ -152,13 +152,13 @@ public class LogAppendTerminal {
         } else {
             if (cmd.roomId == null) {
                 // Saída da galeria (-L sem -R)
-                // TEM de estar na galeria, e NÃO pode estar dentro de nenhuma sala [cite: 707]
+                // TEM de estar na galeria, e NÃO pode estar dentro de nenhuma sala
                 if (!isCurrentlyInGallery || isCurrentlyInRoom) {
                     return false;
                 }
             } else {
                 // Saída de uma sala (-L com -R)
-                // TEM de estar exatamente nesta sala para poder sair [cite: 708]
+                // TEM de estar exatamente nesta sala para poder sair
                 if (!isCurrentlyInRoom || !currentRoom.equals(cmd.roomId)) {
                     return false;
                 }

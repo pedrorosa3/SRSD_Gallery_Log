@@ -284,9 +284,14 @@ public class LogAppendTerminal {
             logFile.createNewFile();
             return;
         }
+
         File dbFile = new File(DB_FILENAME);
-        if (dbFile.getParentFile() != null) {
-            dbFile.getParentFile().mkdirs(); // Cria a pasta "repository" se ela ainda não existir
+        File parentDir = dbFile.getParentFile();
+        if (parentDir != null && !parentDir.exists()) {
+            parentDir.mkdirs();
+        }
+        if (dbFile.exists()) {
+            dbFile.delete();
         }
         dbFile.createNewFile(); // Agora já pode criar o .bin em segurança!
 

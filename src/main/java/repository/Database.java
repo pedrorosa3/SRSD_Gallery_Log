@@ -15,16 +15,14 @@ import models.*;
 
 public class Database {
 
-    private static final String DB_FILENAME = "repository/log_db.bin";
-
-    public static void CreateEntry(String token, DBEntry entry) throws IOException {
-        File file = new File(DB_FILENAME);
+    public static void CreateEntry(String dbFilePath, String token, DBEntry entry) throws IOException {
+        File file = new File(dbFilePath);
 
         if (!file.exists()) {
             file.getParentFile().mkdirs();
             file.createNewFile();
         }
-        try (Scanner sc = new Scanner(new File(DB_FILENAME))) {
+        try (Scanner sc = new Scanner(new File(dbFilePath))) {
             while (sc.hasNextLine()) {
                 DecryptedData db_entry = Encryption.decryptDBRow(sc.nextLine(), token);
                 if (db_entry == null) throw new IOException("Decrypt Failed");
@@ -42,16 +40,16 @@ public class Database {
                 String.valueOf(entry.curr_byte()) + "," +
                 String.valueOf(entry.timestamp());
 
-        Files.writeString(Paths.get(DB_FILENAME), Encryption.encryptDBRow(newRow, token) + System.lineSeparator(),
+        Files.writeString(Paths.get(dbFilePath), Encryption.encryptDBRow(newRow, token) + System.lineSeparator(),
                 StandardOpenOption.APPEND);
     }
 
-    public static void UpdateEntry(String token, DBEntry entry) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
+    public static void UpdateEntry(String dbFilePath, String token, DBEntry entry) throws IOException {
+        Path path = Paths.get(dbFilePath);
         if (!Files.exists(path)) {
             Files.createDirectories(path.getParent());
             Files.createFile(path);
-            CreateEntry(token, entry);
+            CreateEntry(dbFilePath, token, entry);
             return;
         }
         List<String> lines = Files.readAllLines(path);
@@ -86,8 +84,8 @@ public class Database {
             .collect(Collectors.toList()));
     }
 
-    public static void DeleteEntry(String token, String user) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
+    public static void DeleteEntry(String dbFilePath, String token, String user) throws IOException {
+        Path path = Paths.get(dbFilePath);
         List<String> lines = Files.readAllLines(path);
 
         boolean found = false;
@@ -113,8 +111,8 @@ public class Database {
             .collect(Collectors.toList()));
     }
 
-    public static DBEntry GetEntry(String token, String user) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
+    public static DBEntry GetEntry(String dbFilePath, String token, String user) throws IOException {
+        Path path = Paths.get(dbFilePath);
         if (!Files.exists(path)) {
             Files.createDirectories(path.getParent());
             Files.createFile(path);
@@ -137,32 +135,8 @@ public class Database {
         return null;
     }
 
-    public static int GetLastTimestamp(String token) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
-        if (!Files.exists(path)) {
-            Files.createDirectories(path.getParent());
-            Files.createFile(path);
-            return -1;
-        }
-        List<String> lines = Files.readAllLines(path);
-        int lastTimestamp = -1;
-
-        for (int i = 0; i < lines.size(); i++) {
-            DecryptedData entry = Encryption.decryptDBRow(lines.get(i), token);
-            if (entry == null) throw new IOException("Decrypt Failed");
-            String[] row = entry.plaintext().split(",");
-
-            int timestamp = Integer.parseInt(row[5]);
-            if (timestamp > lastTimestamp) {
-                lastTimestamp = timestamp;
-            }
-        }
-
-        return lastTimestamp;
-    }
-
-    public static long GetLastUserOffset(String token, String user) throws IOException {
-        Path path = Paths.get(DB_FILENAME);
+    public static long GetLastUserOffset(String dbFilePath, String token, String user) throws IOException {
+        Path path = Paths.get(dbFilePath);
         if (!Files.exists(path)) {
             Files.createDirectories(path.getParent());
             Files.createFile(path);

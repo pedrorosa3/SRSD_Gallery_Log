@@ -16,8 +16,6 @@ import repository.Database;
 
 public class LogAppendTerminal {
 
-    private static final String DB_FILENAME = "repository" + File.separator + "log_db.bin";
-
     public static void main(String[] args) {
         if (args.length == 0) {
             Utils.exitInvalid();
@@ -33,7 +31,8 @@ public class LogAppendTerminal {
         try {
             LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
             validateArgs(parsedArgs);
-            File db = new File(DB_FILENAME);
+            String dbFilePath = ("repository" + File.separator + parsedArgs.logFile + "_db");
+            File db = new File(dbFilePath);
             File logFile = new File(parsedArgs.logFile);
             if (!logFile.exists()) {
                 logFile.createNewFile();
@@ -41,7 +40,7 @@ public class LogAppendTerminal {
             if (!Encryption.checkIntegrity(parsedArgs.logFile, parsedArgs.token)) {
                 Utils.exitInvalidIntegration();
             }
-            if (!db.exists() || !Encryption.checkDbIntegrity(parsedArgs.logFile, DB_FILENAME, parsedArgs.token)) {
+            if (!db.exists() || !Encryption.checkDbIntegrity(parsedArgs.logFile, dbFilePath, parsedArgs.token)) {
                 createDatabase(parsedArgs.logFile, parsedArgs.token);
             }
             boolean validated = validateAndAppend(parsedArgs);
@@ -122,7 +121,8 @@ public class LogAppendTerminal {
 
         // lógica de validação da galeria
         String name = cmd.user.getUserName();
-        DBEntry userState = Database.GetEntry(cmd.token, name);
+        String dbFilePath = ("repository" + File.separator + cmd.logFile + "_db");
+        DBEntry userState = Database.GetEntry(dbFilePath, cmd.token, name);
         boolean isCurrentlyInGallery = false;
         Integer currentRoom = null;
         String lastAction = null;
@@ -171,7 +171,7 @@ public class LogAppendTerminal {
         String roomStr = (cmd.roomId != null) ? cmd.roomId.toString() : "GALLERY";
 
         long currOffset = Files.size(path);
-        long lastOffset = Database.GetLastUserOffset(cmd.token, name);
+        long lastOffset = Database.GetLastUserOffset(dbFilePath, cmd.token, name);
 
         String paddedName = String.format("%-27s", name);
         String paddedRoom = String.format("%-10s", roomStr);
@@ -201,13 +201,13 @@ public class LogAppendTerminal {
 
         DBEntry newEntry = new DBEntry(cmd.user, actionStr, room, currOffset, cmd.timestamp);
         try {
-            Database.UpdateEntry(cmd.token, newEntry);
+            Database.UpdateEntry(dbFilePath, cmd.token, newEntry);
         } catch (IllegalArgumentException e) {
-            Database.CreateEntry(cmd.token, newEntry);
+            Database.CreateEntry(dbFilePath, cmd.token, newEntry);
         }
 
         // serializa DB
-        byte[] dbContent = Files.readAllBytes(Paths.get(DB_FILENAME));
+        byte[] dbContent = Files.readAllBytes(Paths.get(dbFilePath));
 
         // encriptar e gerar MAC
         String encryptedRow = Encryption.encryptLog(plainText, cmd.token, lastMac, dbContent);
@@ -220,9 +220,9 @@ public class LogAppendTerminal {
         } catch (IOException e) {
             // rollback da DB
             if (userState == null)
-                Database.DeleteEntry(cmd.token, name);
+                Database.DeleteEntry(dbFilePath, cmd.token, name);
             else
-                Database.UpdateEntry(cmd.token, userState);
+                Database.UpdateEntry(dbFilePath, cmd.token, userState);
             return false;
         }
 
@@ -250,7 +250,8 @@ public class LogAppendTerminal {
                 try {
                     String[] args = line.trim().split("\\s+");
                     LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
-                    File db = new File(DB_FILENAME);
+                    String dbFilePath = ("repository" + File.separator + parsedArgs.logFile + "_db");
+                    File db = new File(dbFilePath);
                     File logFile = new File(parsedArgs.logFile);
                     if (!logFile.exists()) {
                         logFile.createNewFile();
@@ -259,7 +260,7 @@ public class LogAppendTerminal {
                         Utils.exitInvalidIntegration();
                     }
                     if (!db.exists()
-                            || !Encryption.checkDbIntegrity(parsedArgs.logFile, DB_FILENAME, parsedArgs.token)) {
+                            || !Encryption.checkDbIntegrity(parsedArgs.logFile, dbFilePath, parsedArgs.token)) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
                     }
                     boolean validated = validateAndAppend(parsedArgs);
@@ -285,7 +286,7 @@ public class LogAppendTerminal {
             return;
         }
 
-        File dbFile = new File(DB_FILENAME);
+        File dbFile = new File("repository" + File.separator + logPath + "_db");
         File parentDir = dbFile.getParentFile();
         if (parentDir != null && !parentDir.exists()) {
             parentDir.mkdirs();
@@ -293,7 +294,7 @@ public class LogAppendTerminal {
         if (dbFile.exists()) {
             dbFile.delete();
         }
-        dbFile.createNewFile(); // Agora já pode criar o .bin em segurança!
+        dbFile.createNewFile();
 
 
         // 2. Ler e desencriptar linha a linha
@@ -330,26 +331,26 @@ public class LogAppendTerminal {
 
                 if (isArrival) {
                     if (roomId == null) {
-                        upsertEntry(token, new DBEntry(user, "IN", -1, byteOffset, entry.getTimestamp()));
+                        upsertEntry(logPath, token, new DBEntry(user, "IN", -1, byteOffset, entry.getTimestamp()));
                     } else {
-                        upsertEntry(token, new DBEntry(user, "IN", roomId, byteOffset, entry.getTimestamp()));
+                        upsertEntry(logPath, token, new DBEntry(user, "IN", roomId, byteOffset, entry.getTimestamp()));
                     }
                 } else {
                     if (roomId == null) {
-                        Database.DeleteEntry(token, user.getUserName());
+                        Database.DeleteEntry("repository" + File.separator + logPath + "_db", token, user.getUserName());
                     } else {
-                        upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, entry.getTimestamp()));
+                        upsertEntry(logPath, token, new DBEntry(user, "OUT", -1, byteOffset, entry.getTimestamp()));
                     }
                 }
             }
         }
     }
 
-    private static void upsertEntry(String token, DBEntry entry) throws IOException {
+    private static void upsertEntry(String logPath, String token, DBEntry entry) throws IOException {
         try {
-            Database.UpdateEntry(token, entry);
+            Database.UpdateEntry("repository" + File.separator + logPath + "_db", token, entry);
         } catch (IllegalArgumentException e) {
-            Database.CreateEntry(token, entry);
+            Database.CreateEntry("repository" + File.separator + logPath + "_db", token, entry);
         }
     }
 }

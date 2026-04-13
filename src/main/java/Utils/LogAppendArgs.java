@@ -39,7 +39,6 @@ public class LogAppendArgs extends ParsedArgs {
                 case "-E": {
                     String name = args[++i];
                     if (name.startsWith("-")) {
-                        System.out.println("args 1");
                         Utils.exitInvalid();
                     }
                     user = new User(name, User.UserType.EMPLOYEE);
@@ -48,7 +47,6 @@ public class LogAppendArgs extends ParsedArgs {
                 case "-G": {
                     String name = args[++i];
                     if (name.startsWith("-")) {
-                        System.out.println("args 2");
                         Utils.exitInvalid();
                     }
                     user = new User(name, User.UserType.GUEST);

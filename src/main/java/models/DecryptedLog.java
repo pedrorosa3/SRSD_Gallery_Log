@@ -2,6 +2,7 @@ package models;
 
 public record DecryptedLog(byte[] iv,
         byte[] ciphertext,
-        byte[] mac,
+        byte[] logMac,
+        byte[] dbMac,
         String plaintext) {
 }

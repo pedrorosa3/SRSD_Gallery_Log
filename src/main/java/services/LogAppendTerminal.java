@@ -10,6 +10,7 @@ import Utils.*;
 import crypto.Encryption;
 import models.DBEntry;
 import models.DecryptedLog;
+import models.LogEntry;
 import models.User;
 import repository.Database;
 
@@ -33,7 +34,14 @@ public class LogAppendTerminal {
             LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
             validateArgs(parsedArgs);
             File db = new File(DB_FILENAME);
-            if (!db.exists()) {
+            File logFile = new File(parsedArgs.logFile);
+            if (!logFile.exists()) {
+                logFile.createNewFile();
+            }
+            if (!Encryption.checkIntegrity(parsedArgs.logFile, parsedArgs.token)) {
+                throw new Exception("Integrity Violation");
+            }
+            if (!db.exists() || !Encryption.checkDbIntegrity(parsedArgs.logFile, DB_FILENAME, parsedArgs.token)) {
                 createDatabase(parsedArgs.logFile, parsedArgs.token);
             }
             boolean validated = validateAndAppend(parsedArgs);
@@ -92,7 +100,6 @@ public class LogAppendTerminal {
 
         // lógica de validação da galeria
         String name = cmd.user.getUserName();
-
         DBEntry userState = Database.GetEntry(cmd.token, name);
         boolean isCurrentlyInGallery = false;
         Integer currentRoom = null;
@@ -153,33 +160,20 @@ public class LogAppendTerminal {
                 lastOffset;
 
         // obter o último MAC
-        String lastLine = null;
-        try (BufferedReader br = Files.newBufferedReader(path)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                lastLine = line;
-            }
-        }
-
         byte[] lastMac = null;
-        if (!(lastLine == null)) {
-            DecryptedLog log = Encryption.DecryptLog(lastLine, cmd.token);
-            if (log == null || log.plaintext() == null) {
-                throw new Exception("Decrypt Failed");
-            }
-            lastMac = log.mac();
-        }
-
-        // encriptar e gerar MAC
-        String encryptedRow = Encryption.EncryptLog(plainText, cmd.token, lastMac);
-
-        // escrever (Append) no ficheiro de log
-        try (FileWriter fw = new FileWriter(cmd.logFile, true);
-                BufferedWriter bw = new BufferedWriter(fw);
-                PrintWriter out = new PrintWriter(bw)) {
-            out.println(encryptedRow);
-        } catch (IOException e) {
-            return false;
+        long logSize = Files.size(path);
+        if (logSize > 0) {
+             try (RandomAccessFile raf = new RandomAccessFile(cmd.logFile, "r")) {
+                raf.seek(logSize - Utils.LINE_SIZE);
+                byte[] buffer = new byte[Utils.LINE_SIZE];
+                int bytesRead = raf.read(buffer);
+                String lastLine = new String(buffer, 0, bytesRead).trim();
+                DecryptedLog log = Encryption.decryptLog(lastLine, cmd.token);
+                if (log == null || log.plaintext() == null) {
+                    throw new Exception("Decrypt Failed");
+                }
+                lastMac = log.logMac();
+             }
         }
 
         // update db
@@ -193,6 +187,25 @@ public class LogAppendTerminal {
             Database.UpdateEntry(cmd.token, newEntry);
         } catch (IllegalArgumentException e) {
             Database.CreateEntry(cmd.token, newEntry);
+        }
+
+
+        // serializa DB
+        byte[] dbContent = Files.readAllBytes(Paths.get(DB_FILENAME));
+        
+        // encriptar e gerar MAC
+        String encryptedRow = Encryption.encryptLog(plainText, cmd.token, lastMac, dbContent);
+
+        // escrever (Append) no ficheiro de log
+        try (FileWriter fw = new FileWriter(cmd.logFile, true);
+                BufferedWriter bw = new BufferedWriter(fw);
+                PrintWriter out = new PrintWriter(bw)) {
+            out.println(encryptedRow);
+        } catch (IOException e) {
+            // rollback da DB
+            if (userState == null) Database.DeleteEntry(cmd.token, name);
+            else Database.UpdateEntry(cmd.token, userState);
+            return false;
         }
 
         return true;
@@ -220,7 +233,14 @@ public class LogAppendTerminal {
                     String[] args = line.trim().split("\\s+");
                     LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
                     File db = new File(DB_FILENAME);
-                    if (!db.exists()) {
+                    File logFile = new File(parsedArgs.logFile);
+                    if (!logFile.exists()) {
+                        logFile.createNewFile();
+                    }
+                    if (!Encryption.checkIntegrity(parsedArgs.logFile, parsedArgs.token)) {
+                        throw new Exception("Integrity Violation");
+                    }
+                    if (!db.exists() || !Encryption.checkDbIntegrity(parsedArgs.logFile, DB_FILENAME, parsedArgs.token)) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
                     }
                     boolean validated = validateAndAppend(parsedArgs);
@@ -242,60 +262,47 @@ public class LogAppendTerminal {
     public static void createDatabase(String logPath, String token) throws Exception {
         File logFile = new File(logPath);
         if (!logFile.exists()) {
+            logFile.createNewFile();
             return;
         }
-
-        // 1. Verificar a integridade (MUITO IMPORTANTE)
-        if (!Encryption.CheckIntegrity(logPath, token)) {
-            // Se a integridade falhar, o comportamento correto para o logappend é "invalid"
-            // e exit(111)
-            throw new Exception("Integrity Violation");
+        File dbFile = new File(DB_FILENAME);
+        if (dbFile.exists()) {
+            dbFile.delete();
         }
+        dbFile.createNewFile();
 
         // 2. Ler e desencriptar linha a linha
         try (Scanner sc = new Scanner(logFile)) {
+            long lineIndex = 0;
             while (sc.hasNextLine()) {
                 String lineBase64 = sc.nextLine().trim();
                 if (lineBase64.isEmpty())
                     continue;
 
-                DecryptedLog log = Encryption.DecryptLog(lineBase64, token);
-                String plainText = log.plaintext();
-                if (plainText == null) {
+                DecryptedLog log = Encryption.decryptLog(lineBase64, token);
+                if (log == null || log.plaintext() == null) {
                     throw new Exception("Decrypt Failed");
                 }
 
                 // Atualizar o estado em memória baseado na linha lida
                 // formato: timestamp,room,type,name,action,byteoffset
-                String[] parts = plainText.split(",");
-                int ts = Integer.parseInt(parts[0]);
-                String roomStr = parts[1];
-                Integer roomId = null;
-                if (!roomStr.equals("GALLERY"))
-                    roomId = Integer.parseInt(roomStr);
-                User user = null;
-                if (parts[2].equals("-E")) {
-                    user = new User(parts[3], User.UserType.EMPLOYEE);
-                } else if (parts[2].equals("-G")) {
-                    user = new User(parts[3], User.UserType.GUEST);
-                } else {
-                    Utils.exitInvalid();
-                }
-                boolean isArrival = parts[4].equals("IN");
-                long byteOffset = Long.parseLong(parts[5]);
-
+                LogEntry entry = LogEntry.parse(log.plaintext());
+                boolean isArrival = entry.getAction().equals("IN");
+                Integer roomId = entry.getRoom().equals("GALLERY") ? null : Integer.parseInt(entry.getRoom().trim());
+                User user = new User(entry.getUserName().trim(), entry.getUserType().equals("-E") ? User.UserType.EMPLOYEE : User.UserType.GUEST);
+                long byteOffset = lineIndex * Utils.LINE_SIZE;
                 if (isArrival) {
                     if (roomId == null)
-                        upsertEntry(token, new DBEntry(user, "IN", -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "IN", -1, byteOffset, entry.getTimestamp()));
                     else {
-                        upsertEntry(token, new DBEntry(user, "IN", roomId, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "IN", roomId, byteOffset, entry.getTimestamp()));
                     }
                 } else { // is Departure
                     if (roomId == null) {
                         Database.DeleteEntry(token, user.getUserName());
                     }
                     else {
-                        upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, ts));
+                        upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, entry.getTimestamp()));
                     }
                 }
             }

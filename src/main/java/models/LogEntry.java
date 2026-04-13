@@ -3,6 +3,7 @@ package models;
 import Utils.Utils;
 
 public class LogEntry {
+        int timestamp;
         String room;
         String userType;
         String userName;
@@ -15,6 +16,7 @@ public class LogEntry {
                 Utils.exitInvalid();
             }
             LogEntry entry = new LogEntry();
+            entry.timestamp = Integer.parseInt(parts[0].trim());
             entry.room = parts[1].trim();
             entry.userType = parts[2].trim();
             entry.userName = parts[3].trim();
@@ -45,5 +47,9 @@ public class LogEntry {
 
         public long getPrevOffset() {
             return prevOffset;
+        }
+
+        public int getTimestamp() {
+            return timestamp;
         }
     }

@@ -23,9 +23,10 @@ import models.*;
 public class LogReadFile {
 
     /*
-    * Process the log file based on the parsed arguments.
-    * @param parsedArgs The parsed command-line arguments.
-    */
+     * Process the log file based on the parsed arguments.
+     * 
+     * @param parsedArgs The parsed command-line arguments.
+     */
     public static void process(LogReadArgs parsedArgs) {
         try {
             if (parsedArgs.isState) {
@@ -43,7 +44,9 @@ public class LogReadFile {
 
     /*
      * Process the log file to read the state of the gallery and rooms.
+     * 
      * @param logFilePath The path to the log file.
+     * 
      * @param token The encryption token.
      */
     private static void LogReadState(String logFilePath, String token) throws IOException {
@@ -55,16 +58,21 @@ public class LogReadFile {
 
             while ((log = Encryption.decryptLog(br.readLine(), token)) != null) {
                 String line = log.plaintext();
-                if (line.trim().isEmpty()) continue;
+                if (line.trim().isEmpty())
+                    continue;
                 LogEntry entry = LogEntry.parse(line);
 
                 if (entry.getRoom().equals("GALLERY")) {
                     if (entry.getAction().equals("IN")) {
-                        if (entry.getUserType().equals("-E")) employees.add(entry.getUserName());
-                        else guests.add(entry.getUserName());
+                        if (entry.getUserType().equals("-E"))
+                            employees.add(entry.getUserName());
+                        else
+                            guests.add(entry.getUserName());
                     } else {
-                        if (entry.getUserType().equals("-E")) employees.remove(entry.getUserName());
-                        else guests.remove(entry.getUserName());
+                        if (entry.getUserType().equals("-E"))
+                            employees.remove(entry.getUserName());
+                        else
+                            guests.remove(entry.getUserName());
                     }
                 } else {
                     int roomId = Integer.parseInt(entry.getRoom());
@@ -82,18 +90,21 @@ public class LogReadFile {
 
             System.out.println(String.join(",", new TreeSet<>(employees)));
             System.out.println(String.join(",", new TreeSet<>(guests)));
-            new TreeMap<>(roomOccupants).forEach((roomId, occupants) ->
-                System.out.println(roomId + ": " + String.join(",", new TreeSet<>(occupants))));
+            new TreeMap<>(roomOccupants).forEach((roomId, occupants) -> System.out
+                    .println(roomId + ": " + String.join(",", new TreeSet<>(occupants))));
         }
     }
 
-
     /*
-    * Process the log file to give the path of a user through the rooms of the gallery.
-    * @param logFilePath The path to the log file.
-    * @param userList The list of users to query.
-    * @param token The encryption token.
-    */
+     * Process the log file to give the path of a user through the rooms of the
+     * gallery.
+     * 
+     * @param logFilePath The path to the log file.
+     * 
+     * @param userList The list of users to query.
+     * 
+     * @param token The encryption token.
+     */
     private static void LogReadRooms(String logFilePath, List<User> userList, String token) throws IOException {
         User user = userList.get(0);
         List<String> rooms = new ArrayList<>();
@@ -110,9 +121,11 @@ public class LogReadFile {
 
             while (currentOffset != -1) {
                 String line = readLine(raf, currentOffset);
-                if (line.isEmpty()) continue;
+                if (line.isEmpty())
+                    continue;
                 DecryptedData log = Encryption.decryptLog(line, token);
-                if (log == null) continue; // skip invalid lines
+                if (log == null)
+                    continue; // skip invalid lines
 
                 LogEntry entry = LogEntry.parse(log.plaintext());
 
@@ -129,60 +142,85 @@ public class LogReadFile {
 
     /*
      * Find the last offset of each user in the log file.
+     * 
      * @param filePath The path to the log file.
+     * 
      * @param users The list of users to query.
+     * 
      * @param token The encryption token.
+     * 
      * @return A map of users to their last offsets.
      */
     private static Map<User, Long> findLastOffsets(String filePath, List<User> users, String token) throws IOException {
         Map<User, Long> offsets = new HashMap<>();
 
-        try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
-            long pointer = raf.length() - Utils.LINE_SIZE;
-
-            while (pointer >= 0 && offsets.size() < users.size()) {
-                String line = readLine(raf, pointer);
-                if (!line.isEmpty()) {
-                    DecryptedData log = Encryption.decryptLog(line, token);
-                    if (log != null) {
-                        LogEntry entry = LogEntry.parse(log.plaintext());
-                        for (User user : users) {
-                            if (!offsets.containsKey(user)
-                                    && entry.getUserName().equals(user.getUserName())
-                                    && entry.getUserType().equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
-                                offsets.put(user, pointer);
-                                break;
-                            }
+        for (int i = 1; offsets.size() < users.size(); i++) {
+            LineSeekResult res = Utils.readNthLastLine(filePath, i);
+            String line = res.line();
+            if (!line.isEmpty()) {
+                DecryptedData log = Encryption.decryptLog(line, token);
+                if (log != null) {
+                    LogEntry entry = LogEntry.parse(log.plaintext());
+                    for (User user : users) {
+                        if (!offsets.containsKey(user)
+                                && entry.getUserName().equals(user.getUserName())
+                                && entry.getUserType()
+                                        .equals(user.getUserType() == User.UserType.EMPLOYEE ? "-E" : "-G")) {
+                            offsets.put(user, res.pointer());
+                            break;
                         }
                     }
                 }
-                pointer -= Utils.LINE_SIZE;
             }
         }
         return offsets;
     }
 
     private static String readLine(RandomAccessFile raf, long offset) throws IOException {
+        if (offset < 0 || offset >= raf.length()) {
+            return null;
+        }
+        // 1. Move to offset
         raf.seek(offset);
-        byte[] buffer = new byte[Utils.LINE_SIZE];
-        int bytesRead = raf.read(buffer);
-        return new String(buffer, 0, bytesRead).trim();
+
+        // 2. Move backward to find start of line
+        long start = offset;
+        while (start > 0) {
+            raf.seek(start - 1);
+            int b = raf.read();
+            if (b == '\n') {
+                break;
+            }
+            start--;
+        }
+
+        // 3. Move forward and read full line
+        raf.seek(start);
+        String line = raf.readLine();
+        if (line == null)
+            return null;
+
+        return line.trim();
     }
 
     /*
-     * Process the log file to find the intersection of rooms visited by a list of users.
+     * Process the log file to find the intersection of rooms visited by a list of
+     * users.
+     * 
      * @param logFilePath The path to the log file.
+     * 
      * @param userList The list of users to query.
+     * 
      * @param token The encryption token.
      */
     public static void LogReadIntersect(String logFilePath, List<User> userList, String token) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(logFilePath, "r")) {
             Map<User, Long> lastOffsets = findLastOffsets(logFilePath, userList, token);
-            if (lastOffsets.size() < userList.size()) return;
+            if (lastOffsets.size() < userList.size())
+                return;
 
             PriorityQueue<UserOffset> orderedOffsets = new PriorityQueue<>(
-                (a, b) -> Long.compare(b.offset(), a.offset())
-            );
+                    (a, b) -> Long.compare(b.offset(), a.offset()));
             for (Map.Entry<User, Long> userLastAction : lastOffsets.entrySet()) {
                 orderedOffsets.offer(new UserOffset(userLastAction.getKey(), userLastAction.getValue()));
             }
@@ -194,9 +232,11 @@ public class LogReadFile {
             while (!orderedOffsets.isEmpty()) {
                 UserOffset currentOffset = orderedOffsets.poll();
                 String line = readLine(raf, currentOffset.offset());
-                if (line.isEmpty()) continue;
+                if (line.isEmpty())
+                    continue;
                 DecryptedData log = Encryption.decryptLog(line, token);
-                if (log == null) continue; // skip invalid lines
+                if (log == null)
+                    continue; // skip invalid lines
 
                 LogEntry entry = LogEntry.parse(log.plaintext());
                 User user = currentOffset.user();
@@ -216,7 +256,8 @@ public class LogReadFile {
                         }
                     }
 
-                    if (roomVisits.containsKey(entry.getRoom()) && roomVisits.get(entry.getRoom()).containsAll(userList)) {
+                    if (roomVisits.containsKey(entry.getRoom())
+                            && roomVisits.get(entry.getRoom()).containsAll(userList)) {
                         result.add(entry.getRoom());
                     }
                 }
@@ -229,12 +270,13 @@ public class LogReadFile {
             }
 
             String output = result.stream()
-                .map(Integer::parseInt)
-                .sorted()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
+                    .map(Integer::parseInt)
+                    .sorted()
+                    .map(String::valueOf)
+                    .collect(Collectors.joining(","));
 
-            if (!output.isEmpty()) System.out.println(output);
+            if (!output.isEmpty())
+                System.out.println(output);
         }
     }
 }

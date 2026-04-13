@@ -1,7 +1,6 @@
 package crypto;
 
 import java.io.File;
-import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -18,6 +17,7 @@ import javax.crypto.spec.SecretKeySpec;
 
 import Utils.Utils;
 import models.DecryptedData;
+import models.LineSeekResult;
 
 public class Encryption {
 
@@ -165,34 +165,37 @@ public class Encryption {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(token.getBytes(StandardCharsets.UTF_8));
-            byte[] km = new byte[16];
-            System.arraycopy(hash, 16, km, 0, 16);
+            byte[] km = Arrays.copyOfRange(hash, 16, 32);
 
-            try (RandomAccessFile raf = new RandomAccessFile(logPath, "r")) {
-                long lastLineOffset = raf.length() - Utils.LINE_SIZE;
-                if (lastLineOffset < 0) {
-                    return false;
-                }
-                raf.seek(lastLineOffset);
-                byte[] buffer = new byte[Utils.LINE_SIZE];
-                int bytesRead = raf.read(buffer);
-                String lastLine = new String(buffer, 0, bytesRead).trim();
-
-                byte[] row = Base64.getDecoder().decode(lastLine);
-                byte[] storedDbMac = Arrays.copyOfRange(row, row.length - 32, row.length);
-                byte[] lastLogMac = Arrays.copyOfRange(row, row.length - 64, row.length - 32);
-                byte[] dbContent = Files.readAllBytes(Paths.get(dbPath)); // TODO mudar par ser apenas batches e não
-                                                                          // ficheiro inteiro
-
-                Mac mac = Mac.getInstance("HmacSHA256");
-                SecretKeySpec macKey = new SecretKeySpec(km, "HmacSHA256");
-                mac.init(macKey);
-                byte[] dbMacInput = new byte[dbContent.length + lastLogMac.length];
-                System.arraycopy(dbContent, 0, dbMacInput, 0, dbContent.length);
-                System.arraycopy(lastLogMac, 0, dbMacInput, dbContent.length, lastLogMac.length);
-                byte[] expectedDbMac = mac.doFinal(dbMacInput);
-                return MessageDigest.isEqual(storedDbMac, expectedDbMac);
+            LineSeekResult result = Utils.readNthLastLine(logPath, 1);
+            if (result == null || result.line() == null || result.line().isEmpty()) {
+                return false;
             }
+
+            String lastLine = result.line().trim();
+
+            byte[] row = Base64.getDecoder().decode(lastLine);
+
+            if (row.length < 64) {
+                return false;
+            }
+
+            byte[] storedDbMac = Arrays.copyOfRange(row, row.length - 32, row.length);
+            byte[] lastLogMac = Arrays.copyOfRange(row, row.length - 64, row.length - 32);
+            byte[] dbContent = Files.readAllBytes(Paths.get(dbPath));
+
+            Mac mac = Mac.getInstance("HmacSHA256");
+            SecretKeySpec macKey = new SecretKeySpec(km, "HmacSHA256");
+            mac.init(macKey);
+
+            byte[] dbMacInput = new byte[dbContent.length + lastLogMac.length];
+            System.arraycopy(dbContent, 0, dbMacInput, 0, dbContent.length);
+            System.arraycopy(lastLogMac, 0, dbMacInput, dbContent.length, lastLogMac.length);
+
+            byte[] expectedDbMac = mac.doFinal(dbMacInput);
+
+            return MessageDigest.isEqual(storedDbMac, expectedDbMac);
+
         } catch (Exception e) {
             return false;
         }

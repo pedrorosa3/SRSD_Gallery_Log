@@ -33,6 +33,11 @@ public class LogAppendTerminal {
             LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
             validateArgs(parsedArgs);
             File db = new File(DB_FILENAME);
+
+            if (!Encryption.CheckIntegrity(parsedArgs.logFile, parsedArgs.token)) {
+                Utils.exitInvalidIntegration();
+            }
+
             if (!db.exists()) {
                 createDatabase(parsedArgs.logFile, parsedArgs.token);
             }
@@ -85,7 +90,29 @@ public class LogAppendTerminal {
         }
 
         // validar a cronologia do tempo
-        int lastTimestamp = Database.GetLastTimestamp(cmd.token);
+
+        String lastLine = null;
+        try (BufferedReader br = Files.newBufferedReader(path)) {
+            String line;
+            while ((line = br.readLine()) != null) {
+                lastLine = line;
+            }
+        }
+
+        // decrypt last log
+        DecryptedLog log = null;
+        int lastTimestamp = 0;
+
+        if (!(lastLine == null)) {
+            log = Encryption.DecryptLog(lastLine, cmd.token);
+            if (log == null || log.plaintext() == null) {
+                throw new Exception("Decrypt Failed");
+            }
+            String[] row = log.plaintext().split(",");
+            lastTimestamp = Integer.parseInt(row[0]);
+        }
+
+        // validate timestamp
         if (lastTimestamp != -1 && cmd.timestamp <= lastTimestamp) {
             return false;
         }
@@ -153,20 +180,8 @@ public class LogAppendTerminal {
                 lastOffset;
 
         // obter o último MAC
-        String lastLine = null;
-        try (BufferedReader br = Files.newBufferedReader(path)) {
-            String line;
-            while ((line = br.readLine()) != null) {
-                lastLine = line;
-            }
-        }
-
         byte[] lastMac = null;
         if (!(lastLine == null)) {
-            DecryptedLog log = Encryption.DecryptLog(lastLine, cmd.token);
-            if (log == null || log.plaintext() == null) {
-                throw new Exception("Decrypt Failed");
-            }
             lastMac = log.mac();
         }
 
@@ -220,6 +235,11 @@ public class LogAppendTerminal {
                     String[] args = line.trim().split("\\s+");
                     LogAppendArgs parsedArgs = LogAppendArgs.parse(args);
                     File db = new File(DB_FILENAME);
+
+                    if (!Encryption.CheckIntegrity(parsedArgs.logFile, parsedArgs.token)) {
+                        Utils.exitInvalidIntegration();
+                    }
+
                     if (!db.exists()) {
                         createDatabase(parsedArgs.logFile, parsedArgs.token);
                     }
@@ -243,13 +263,6 @@ public class LogAppendTerminal {
         File logFile = new File(logPath);
         if (!logFile.exists()) {
             return;
-        }
-
-        // 1. Verificar a integridade (MUITO IMPORTANTE)
-        if (!Encryption.CheckIntegrity(logPath, token)) {
-            // Se a integridade falhar, o comportamento correto para o logappend é "invalid"
-            // e exit(111)
-            throw new Exception("Integrity Violation");
         }
 
         // 2. Ler e desencriptar linha a linha
@@ -293,8 +306,7 @@ public class LogAppendTerminal {
                 } else { // is Departure
                     if (roomId == null) {
                         Database.DeleteEntry(token, user.getUserName());
-                    }
-                    else {
+                    } else {
                         upsertEntry(token, new DBEntry(user, "OUT", -1, byteOffset, ts));
                     }
                 }

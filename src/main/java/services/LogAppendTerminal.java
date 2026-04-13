@@ -16,7 +16,7 @@ import repository.Database;
 
 public class LogAppendTerminal {
 
-    private static final String DB_FILENAME = "repository/log_db.bin";
+    private static final String DB_FILENAME = "repository" + File.separator + "log_db.bin";
 
     public static void main(String[] args) {
         if (args.length == 0) {

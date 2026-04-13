@@ -14,7 +14,7 @@ compile:
 	$(JAVAC) -d $(OUT) $(shell find $(SRC) -name "*.java")
 
 # run logappend with args (usage: make run ARGS="...")
-run: compile
+run-append: compile
 	$(JAVA) -cp $(OUT) $(MAIN_APPEND) $(ARGS)
 
 # run logread with args (usage: make run-read ARGS="...")

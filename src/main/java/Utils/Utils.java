@@ -11,8 +11,8 @@ public class Utils {
         System.exit(111);
     }
 
-    public static void exitInvalidIntegration() {
-        System.out.println("integration violation");
+    public static void exitIntegrityViolation() {
+        System.out.println("integrity violation");
         System.exit(111);
     }
 

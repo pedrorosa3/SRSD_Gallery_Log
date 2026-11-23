@@ -113,19 +113,18 @@ public class LogReadFile {
             Map<User, Long> offsets = findLastOffsets(logFilePath, userList, token);
 
             if (!offsets.containsKey(user)) {
-                System.out.println();
-                return;
+                return; // pessoa não aparece no log: não imprimir nada
             }
 
             long currentOffset = offsets.get(user);
 
             while (currentOffset != -1) {
                 String line = readLine(raf, currentOffset);
-                if (line.isEmpty())
-                    continue;
+                if (line == null || line.isEmpty())
+                    break;
                 DecryptedData log = Encryption.decryptLog(line, token);
                 if (log == null)
-                    continue; // skip invalid lines
+                    break;
 
                 LogEntry entry = LogEntry.parse(log.plaintext());
 
@@ -156,7 +155,10 @@ public class LogReadFile {
 
         for (int i = 1; offsets.size() < users.size(); i++) {
             LineSeekResult res = Utils.readNthLastLine(filePath, i);
+            if (res == null || res.line() == null)
+                break; // log vazio
             String line = res.line();
+            boolean isFirstLine = res.pointer() == 0;
             if (!line.isEmpty()) {
                 DecryptedData log = Encryption.decryptLog(line, token);
                 if (log != null) {
@@ -172,6 +174,8 @@ public class LogReadFile {
                     }
                 }
             }
+            if (isFirstLine)
+                break; // chegámos ao início do log: utilizadores em falta não existem
         }
         return offsets;
     }
@@ -232,7 +236,7 @@ public class LogReadFile {
             while (!orderedOffsets.isEmpty()) {
                 UserOffset currentOffset = orderedOffsets.poll();
                 String line = readLine(raf, currentOffset.offset());
-                if (line.isEmpty())
+                if (line == null || line.isEmpty())
                     continue;
                 DecryptedData log = Encryption.decryptLog(line, token);
                 if (log == null)

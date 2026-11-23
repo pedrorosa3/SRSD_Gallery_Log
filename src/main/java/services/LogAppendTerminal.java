@@ -38,7 +38,7 @@ public class LogAppendTerminal {
                 logFile.createNewFile();
             }
             if (!Encryption.checkIntegrity(parsedArgs.logFile, parsedArgs.token)) {
-                Utils.exitInvalidIntegration();
+                Utils.exitInvalid();
             }
             if (!db.exists() || !Encryption.checkDbIntegrity(parsedArgs.logFile, dbFilePath, parsedArgs.token)) {
                 createDatabase(parsedArgs.logFile, parsedArgs.token);
@@ -257,7 +257,8 @@ public class LogAppendTerminal {
                         logFile.createNewFile();
                     }
                     if (!Encryption.checkIntegrity(parsedArgs.logFile, parsedArgs.token)) {
-                        Utils.exitInvalidIntegration();
+                        Utils.invalidBatchLine();
+                        continue;
                     }
                     if (!db.exists()
                             || !Encryption.checkDbIntegrity(parsedArgs.logFile, dbFilePath, parsedArgs.token)) {
